@@ -20,12 +20,20 @@ st.markdown("""
 
 /* 🖨️ 인쇄 전용 완벽 제어 CSS */
 @media print {
-    /* 1. 상단, 측면의 Streamlit 껍데기 UI 완벽 숨기기 */
-    header, footer, nav, [data-testid="stSidebar"], [data-testid="stHeader"], [data-testid="stToolbar"] { 
+    /* 1. 상단, 측면 UI 및 클라우드 워터마크 완벽 숨기기 */
+    header, footer, nav, [data-testid="stSidebar"], [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stViewerBadge"], .viewerBadge_container_link, .viewerBadge_link { 
         display: none !important; 
     }
     
-    /* 2. [가장 중요] 스트림릿이 1페이지 밑으로 내용을 잘라버리는 현상 완벽 차단 */
+    /* 2. 스크롤바 원천 차단 */
+    ::-webkit-scrollbar {
+        display: none !important;
+    }
+    * {
+        scrollbar-width: none !important;
+    }
+    
+    /* 3. 1페이지 잘림 현상 방지 및 여백 제거 */
     html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"], [data-testid="stMainBlockContainer"] {
         height: auto !important;
         min-height: 100% !important;
@@ -36,12 +44,12 @@ st.markdown("""
         max-width: 100% !important; 
     }
     
-    /* 3. '인쇄용 표(print-area)'가 들어있지 않은 모든 입력창, 버튼, 체크박스 영역 완전 삭제 */
+    /* 4. '인쇄용 표'가 아닌 모든 위젯 삭제 */
     .element-container:not(:has(.print-area)) {
         display: none !important;
     }
     
-    /* 4. 확실한 페이지 나누기 명령어 */
+    /* 5. 페이지 나누기 */
     .gapji-table { page-break-inside: auto; }
     tr { page-break-inside: avoid; page-break-after: auto; }
     .page-break { 
@@ -49,14 +57,12 @@ st.markdown("""
         page-break-before: always !important; 
     } 
     
-    /* 5. 엑셀처럼 흑백 선/배경색 강제 유지 */
+    /* 6. 선/배경색 강제 유지 및 여백 타이트 설정 */
     * { 
         -webkit-print-color-adjust: exact !important; 
         print-color-adjust: exact !important; 
     }
     body { background-color: white !important; }
-    
-    /* 6. A4 용지 인쇄 시 기본 여백 타이트하게 설정 */
     @page { size: A4; margin: 10mm; }
 }
 
@@ -69,7 +75,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🚨 신건설 통합관리 프로그램")
-st.subheader("사고보고서 입력 시스템 (Ver.8 - 페이지 잘림 완벽 패치)")
+st.subheader("사고보고서 입력 시스템 (Ver.9 - 스크롤/워터마크 암살 패치)")
 
 st.markdown("### 📋 전자결재 사전 확인 (화면 검토용)")
 con_col1, con_col2 = st.columns(2)
