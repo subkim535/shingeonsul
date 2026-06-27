@@ -14,50 +14,44 @@ def img_to_base64(uploaded_file):
         return f"data:image/jpeg;base64,{base64.b64encode(file_bytes).decode()}"
     return ""
 
+# [핵심] 클라우드 환경의 모든 스크롤 제한을 강제로 풀어버리는 절대 CSS
 st.markdown("""
 <style>
 .nav-tip { color: #555; font-size: 0.85rem; margin-bottom: 20px; }
 
-/* 🖨️ 인쇄 전용 완벽 제어 CSS */
 @media print {
-    /* 1. 상단, 측면 UI 및 클라우드 워터마크 완벽 숨기기 */
-    header, footer, nav, [data-testid="stSidebar"], [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stViewerBadge"], .viewerBadge_container_link, .viewerBadge_link { 
+    /* 1. 불필요한 UI 완벽 숨기기 */
+    header, footer, nav, [data-testid="stSidebar"], [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stViewerBadge"] { 
         display: none !important; 
     }
     
-    /* 2. 스크롤바 원천 차단 */
-    ::-webkit-scrollbar {
-        display: none !important;
-    }
-    * {
-        scrollbar-width: none !important;
-    }
-    
-    /* 3. 1페이지 잘림 현상 방지 및 여백 제거 */
-    html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"], [data-testid="stMainBlockContainer"] {
+    /* 2. [가장 중요] 클라우드의 모든 컨테이너 제한 풀기 (페이지 잘림 원천 차단) */
+    html, body, #root, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"], [data-testid="stMainBlockContainer"] {
+        display: block !important;
+        width: 100% !important;
         height: auto !important;
         min-height: 100% !important;
+        max-height: none !important;
         overflow: visible !important;
         position: static !important;
         padding: 0 !important; 
         margin: 0 !important; 
-        max-width: 100% !important; 
     }
     
-    /* 4. '인쇄용 표'가 아닌 모든 위젯 삭제 */
+    /* 3. 입력창 등 안쓰는 부분 공간 완전 삭제 */
     .element-container:not(:has(.print-area)) {
         display: none !important;
     }
     
-    /* 5. 페이지 나누기 */
+    /* 4. 표 분리 (페이지 넘김 강제) */
     .gapji-table { page-break-inside: auto; }
     tr { page-break-inside: avoid; page-break-after: auto; }
     .page-break { 
-        break-before: page !important; 
         page-break-before: always !important; 
+        break-before: page !important; 
     } 
     
-    /* 6. 선/배경색 강제 유지 및 여백 타이트 설정 */
+    /* 5. 엑셀처럼 흑백 선/배경 강제 출력 */
     * { 
         -webkit-print-color-adjust: exact !important; 
         print-color-adjust: exact !important; 
@@ -66,7 +60,7 @@ st.markdown("""
     @page { size: A4; margin: 10mm; }
 }
 
-/* 표 기본 디자인 (웹 & 인쇄 공통) */
+/* 표 기본 디자인 */
 .gapji-table { width: 100% !important; border-collapse: collapse !important; margin-top: 0px !important; font-family: 'Malgun Gothic', sans-serif; font-size: 13px; color: #000; border: 2px solid #000 !important; }
 .gapji-table th, .gapji-table td { border: 1px solid #000 !important; padding: 6px !important; text-align: center; vertical-align: middle; word-wrap: break-word; }
 .gapji-header { background-color: #f0f0f0 !important; font-weight: bold; border: 1px solid #000 !important; }
@@ -75,7 +69,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🚨 신건설 통합관리 프로그램")
-st.subheader("사고보고서 입력 시스템 (Ver.9 - 스크롤/워터마크 암살 패치)")
+st.subheader("사고보고서 입력 시스템 (Ver.10 - 클라우드 페이지 잘림 해결)")
 
 st.markdown("### 📋 전자결재 사전 확인 (화면 검토용)")
 con_col1, con_col2 = st.columns(2)
