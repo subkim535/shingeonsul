@@ -1,75 +1,61 @@
 import os
-import json
-import base64
 import datetime
 from datetime import date, datetime as dt
 import streamlit as st
 
+# 1. 페이지 기본 설정
 st.set_page_config(page_title="신건설 통합관리 프로그램 - 사고보고서 입력", layout="centered")
 
-def img_to_base64(uploaded_file):
-    if uploaded_file is not None:
-        file_bytes = uploaded_file.read()
-        uploaded_file.seek(0)
-        return f"data:image/jpeg;base64,{base64.b64encode(file_bytes).decode()}"
-    return ""
-
-# [핵심] 클라우드 환경의 모든 스크롤 제한을 강제로 풀어버리는 절대 CSS
+# 🖨️ 인쇄 전용 CSS (1페이지 갑지 전용)
 st.markdown("""
 <style>
 .nav-tip { color: #555; font-size: 0.85rem; margin-bottom: 20px; }
 
 @media print {
-    /* 1. 불필요한 UI 완벽 숨기기 */
+    /* 웹 전용 UI (헤더, 사이드바, 버튼 등) 완벽 숨김 */
     header, footer, nav, [data-testid="stSidebar"], [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stViewerBadge"] { 
         display: none !important; 
     }
     
-    /* 2. [가장 중요] 클라우드의 모든 컨테이너 제한 풀기 (페이지 잘림 원천 차단) */
+    /* 인쇄 스크롤 및 여백 제한 해제 */
     html, body, #root, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"], [data-testid="stMainBlockContainer"] {
         display: block !important;
         width: 100% !important;
         height: auto !important;
-        min-height: 100% !important;
-        max-height: none !important;
         overflow: visible !important;
         position: static !important;
         padding: 0 !important; 
         margin: 0 !important; 
     }
     
-    /* 3. 입력창 등 안쓰는 부분 공간 완전 삭제 */
+    /* 화면에 입력창 숨기고 '갑지 표'만 남기기 */
     .element-container:not(:has(.print-area)) {
         display: none !important;
     }
     
-    /* 4. 표 분리 (페이지 넘김 강제) */
-    .gapji-table { page-break-inside: auto; }
-    tr { page-break-inside: avoid; page-break-after: auto; }
-    .page-break { 
-        page-break-before: always !important; 
-        break-before: page !important; 
-    } 
+    /* 1장짜리 표가 찢어지지 않도록 보호 */
+    .gapji-table { page-break-inside: avoid; }
     
-    /* 5. 엑셀처럼 흑백 선/배경 강제 출력 */
+    /* 엑셀처럼 흑백 선/배경색 강제 유지 */
     * { 
         -webkit-print-color-adjust: exact !important; 
         print-color-adjust: exact !important; 
     }
     body { background-color: white !important; }
-    @page { size: A4; margin: 10mm; }
+    
+    /* A4 용지 여백 설정 */
+    @page { size: A4; margin: 15mm; }
 }
 
-/* 표 기본 디자인 */
+/* 표 기본 디자인 (웹 & 인쇄 공통) */
 .gapji-table { width: 100% !important; border-collapse: collapse !important; margin-top: 0px !important; font-family: 'Malgun Gothic', sans-serif; font-size: 13px; color: #000; border: 2px solid #000 !important; }
 .gapji-table th, .gapji-table td { border: 1px solid #000 !important; padding: 6px !important; text-align: center; vertical-align: middle; word-wrap: break-word; }
 .gapji-header { background-color: #f0f0f0 !important; font-weight: bold; border: 1px solid #000 !important; }
-.photo-img { max-width: 95%; max-height: 220px; object-fit: contain; }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("🚨 신건설 통합관리 프로그램")
-st.subheader("사고보고서 입력 시스템 (Ver.10 - 클라우드 페이지 잘림 해결)")
+st.subheader("사고보고서 입력 시스템 (Ver.11 - 사진 제거 및 단일 갑지 최적화)")
 
 st.markdown("### 📋 전자결재 사전 확인 (화면 검토용)")
 con_col1, con_col2 = st.columns(2)
@@ -89,7 +75,7 @@ with con_col2:
 
 st.markdown("---")
 
-st.header("1. 사고 기본 정보 및 원인 (챕터1)")
+st.header("1. 사고 기본 정보 및 원인")
 col1, col2 = st.columns(2)
 with col1:
     site_name = st.text_input("현장명", value="이천부발현장")
@@ -105,7 +91,7 @@ accident_type = st.selectbox("사고발생형태", ["떨어짐", "낙하·비래
 injury_degree = st.text_input("상해피해정도 진단서", value="주상병 : 좌측 제12 늑골 골절, 폐쇄성 / 질병분류기호 : S22.390")
 
 st.markdown("---")
-st.subheader("👤 피재자 정보")
+st.header("2. 피재자 정보")
 p_col1, p_col2 = st.columns(2)
 with p_col1:
     p_name_ko = st.text_input("피재자 성명", value="김개똥")
@@ -120,13 +106,6 @@ prevent_tech = st.text_input("재발방지대책 (기술적)", value="1. 철근 
 
 st.markdown("---")
 
-st.header("📸 2. 현장 상황도 사진 등록")
-col_img1, col_img2 = st.columns(2)
-with col_img1:
-    uploaded_accident = st.file_uploader("🖼️ [사고상황도] 사진", type=["jpg","png","jpeg"], accept_multiple_files=True)
-with col_img2:
-    uploaded_injury = st.file_uploader("🩺 [재해정도] 사진", type=["jpg","png","jpeg"], accept_multiple_files=True)
-
 formatted_time = accident_time.strftime('%H:%M')
 auto_accident_detail = (
     f"{accident_date.strftime('%y.%m.%d')} {formatted_time}분경 / {accident_place}에서 / "
@@ -135,45 +114,8 @@ auto_accident_detail = (
 )
 final_detail = st.text_area("사고경위 (수정 가능)", value=auto_accident_detail, height=100)
 
-if st.button("📝 사고보고서 등록 및 갑지 서식 완성", type="primary", use_container_width=True):
+if st.button("📝 사고보고서 1장(갑지) 서식 완성", type="primary", use_container_width=True):
     
-    photo_rows_html = ""
-    photo_count = 1
-    
-    if uploaded_accident:
-        for i in range(0, len(uploaded_accident), 2):
-            img1_b64 = img_to_base64(uploaded_accident[i])
-            img2_b64 = img_to_base64(uploaded_accident[i+1]) if i+1 < len(uploaded_accident) else ""
-            img1_tag = f'<img src="{img1_b64}" class="photo-img">' if img1_b64 else ''
-            img2_tag = f'<img src="{img2_b64}" class="photo-img">' if img2_b64 else ''
-            photo_rows_html += f"""<tr>
-<td class="gapji-header">사진{photo_count}<br>사고상황도</td>
-<td style="height:250px;">{img1_tag}<br><br>전체사진</td>
-<td>{img2_tag}<br><br>확대사진</td>
-</tr>"""
-            photo_count += 1
-
-    if uploaded_injury:
-        for i in range(0, len(uploaded_injury), 2):
-            img1_b64 = img_to_base64(uploaded_injury[i])
-            img2_b64 = img_to_base64(uploaded_injury[i+1]) if i+1 < len(uploaded_injury) else ""
-            img1_tag = f'<img src="{img1_b64}" class="photo-img">' if img1_b64 else ''
-            img2_tag = f'<img src="{img2_b64}" class="photo-img">' if img2_b64 else ''
-            photo_rows_html += f"""<tr>
-<td class="gapji-header">사진{photo_count}<br>재해정도</td>
-<td style="height:250px;">{img1_tag}<br><br>전체사진</td>
-<td>{img2_tag}<br><br>확대사진</td>
-</tr>"""
-            photo_count += 1
-            
-    if not uploaded_accident and not uploaded_injury:
-        photo_rows_html = """<tr>
-<td class="gapji-header">사진1<br>사고상황도</td><td style="height:250px;">사진 없음</td><td>사진 없음</td>
-</tr>
-<tr>
-<td class="gapji-header">사진2<br>재해정도</td><td style="height:250px;">사진 없음</td><td>사진 없음</td>
-</tr>"""
-
     html_content = f"""<div class="print-area">
 <table class="gapji-table" border="1" cellpadding="5" cellspacing="0">
 <tr>
@@ -288,22 +230,6 @@ if st.button("📝 사고보고서 등록 및 갑지 서식 완성", type="prima
 <td class="gapji-header" style="height: 40px;">첨부서류</td>
 <td colspan="7" style="text-align: left; padding-left: 10px;">추후 진단서 첨부 예정</td>
 </tr>
-</table>
-<div class="page-break"></div>
-<table class="gapji-table" border="1" cellpadding="5" cellspacing="0" style="margin-top:0px;">
-<tr>
-<td colspan="3" style="font-size: 26px; font-weight: bold; padding: 15px; border: none !important; text-align:center;">사고현장 상황도</td>
-</tr>
-<tr>
-<td class="gapji-header" style="width: 15%;">일 시</td>
-<td style="width: 42%;">{accident_date.strftime('%Y-%m-%d')} ({formatted_time}경)</td>
-<td class="gapji-header" style="width: 43%;">사 고 장 소 : {accident_place}</td>
-</tr>
-<tr>
-<td class="gapji-header" style="height: 60px;">상황도</td>
-<td colspan="2" style="text-align: left; padding: 10px;">{accident_cause}</td>
-</tr>
-{photo_rows_html}
 </table>
 </div>"""
     
