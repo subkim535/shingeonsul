@@ -18,55 +18,51 @@ st.markdown("""
 <style>
 .nav-tip { color: #555; font-size: 0.85rem; margin-bottom: 20px; }
 
-/* [완벽 해결] 인쇄 시 모든 요소를 숨기고 표만 강제로 띄우는 절대 규칙 */
+/* 🖨️ 인쇄 전용 완벽 제어 CSS */
 @media print {
-    /* 1. 화면의 모든 것을 일단 안 보이게 숨깁니다 */
-    body * {
-        visibility: hidden !important;
+    /* 1. 상단, 측면의 Streamlit 껍데기 UI 완벽 숨기기 */
+    header, footer, nav, [data-testid="stSidebar"], [data-testid="stHeader"], [data-testid="stToolbar"] { 
+        display: none !important; 
     }
     
-    /* 2. 오직 print-area(갑지 표)와 그 안의 내용물만 강제로 보이게 살려냅니다 */
-    .print-area, .print-area * {
-        visibility: visible !important;
+    /* 2. Streamlit 기본 여백 완벽 제거 (이게 공백의 원인 중 하나) */
+    .block-container, .main { 
+        padding: 0 !important; 
+        margin: 0 !important; 
+        max-width: 100% !important; 
     }
     
-    /* 3. 살려낸 표를 A4 용지 맨 왼쪽 위(0,0) 좌표로 멱살 잡고 끌어다 놓습니다 */
-    .print-area {
-        position: absolute !important;
-        left: 0 !important;
-        top: 0 !important;
-        width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-
-    /* 4. 배경색과 선 강제 유지 */
-    * {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
+    /* 3. [핵심 마법] '인쇄용 표(print-area)'가 들어있지 않은 모든 입력창, 버튼, 체크박스 영역을 "공간째로" 완전 삭제 */
+    .element-container:not(:has(.print-area)) {
+        display: none !important;
     }
     
+    /* 4. 표가 페이지 중간에 찢어지지 않도록 보호 */
+    .gapji-table { page-break-inside: auto; }
+    tr { page-break-inside: avoid; page-break-after: auto; }
     .page-break { page-break-before: always !important; } 
-    body { background-color: #fff !important; }
+    
+    /* 5. 엑셀처럼 흑백 선/배경색 강제 유지 */
+    * { 
+        -webkit-print-color-adjust: exact !important; 
+        print-color-adjust: exact !important; 
+    }
+    body { background-color: white !important; }
+    
+    /* 6. A4 용지 인쇄 시 기본 여백 타이트하게 설정 */
+    @page { size: A4; margin: 10mm; }
 }
 
-/* 표 기본 디자인 */
-.gapji-table { width: 100% !important; border-collapse: collapse !important; margin-top: 10px; font-family: 'Malgun Gothic', sans-serif; font-size: 13px; color: #000; border: 2px solid #000 !important; }
-.gapji-table th, .gapji-table td { border: 1px solid #000 !important; padding: 8px !important; text-align: center; vertical-align: middle; word-wrap: break-word; }
+/* 표 기본 디자인 (웹 & 인쇄 공통) */
+.gapji-table { width: 100% !important; border-collapse: collapse !important; margin-top: 0px !important; font-family: 'Malgun Gothic', sans-serif; font-size: 13px; color: #000; border: 2px solid #000 !important; }
+.gapji-table th, .gapji-table td { border: 1px solid #000 !important; padding: 6px !important; text-align: center; vertical-align: middle; word-wrap: break-word; }
 .gapji-header { background-color: #f0f0f0 !important; font-weight: bold; border: 1px solid #000 !important; }
-.main-title { font-size: 24px; font-weight: bold; text-align: left; padding-bottom: 10px; border: none !important; }
-.sign-table { border-collapse: collapse !important; float: right; height: 70px; margin-right: 5px; margin-top: 5px; border: 2px solid #000 !important; }
-.sign-table td { border: 1px solid #000 !important; font-size: 11px; text-align: center; padding: 2px; width: 52px; }
-.sign-title { background-color: #f0f0f0 !important; font-weight: bold; width: 25px; }
-.text-left { text-align: left !important; padding-left: 10px !important; }
-.photo-title { font-size: 22px; font-weight: bold; padding: 15px !important; border-bottom: 2px solid #000 !important; background-color: white !important; }
-.photo-row { height: 260px; } 
 .photo-img { max-width: 95%; max-height: 220px; object-fit: contain; }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("🚨 신건설 통합관리 프로그램")
-st.subheader("사고보고서 입력 시스템 (Ver.5 - 인쇄 버그 완벽 수정)")
+st.subheader("사고보고서 입력 시스템 (Ver.7 - 여백 소멸 패치)")
 
 st.markdown("### 📋 전자결재 사전 확인 (화면 검토용)")
 con_col1, con_col2 = st.columns(2)
@@ -106,7 +102,7 @@ st.subheader("👤 피재자 정보")
 p_col1, p_col2 = st.columns(2)
 with p_col1:
     p_name_ko = st.text_input("피재자 성명", value="김개똥")
-    p_birth_code = st.text_input("주민번호 앞자리(또는 생년월일)", value="630310-1")
+    p_birth_code = st.text_input("주민번호 앞자리", value="630310-1")
     p_team = st.text_input("소속/직급", value="수도인력")
 with p_col2:
     p_gongjong = st.text_input("직종", value="보통인부")
@@ -137,15 +133,16 @@ if st.button("📝 사고보고서 등록 및 갑지 서식 완성", type="prima
     photo_rows_html = ""
     photo_count = 1
     
+    # 사진 행 HTML 생성 로직
     if uploaded_accident:
         for i in range(0, len(uploaded_accident), 2):
             img1_b64 = img_to_base64(uploaded_accident[i])
             img2_b64 = img_to_base64(uploaded_accident[i+1]) if i+1 < len(uploaded_accident) else ""
             img1_tag = f'<img src="{img1_b64}" class="photo-img">' if img1_b64 else ''
             img2_tag = f'<img src="{img2_b64}" class="photo-img">' if img2_b64 else ''
-            photo_rows_html += f"""<tr class="photo-row">
+            photo_rows_html += f"""<tr>
 <td class="gapji-header">사진{photo_count}<br>사고상황도</td>
-<td>{img1_tag}<br><br>전체사진</td>
+<td style="height:250px;">{img1_tag}<br><br>전체사진</td>
 <td>{img2_tag}<br><br>확대사진</td>
 </tr>"""
             photo_count += 1
@@ -156,59 +153,61 @@ if st.button("📝 사고보고서 등록 및 갑지 서식 완성", type="prima
             img2_b64 = img_to_base64(uploaded_injury[i+1]) if i+1 < len(uploaded_injury) else ""
             img1_tag = f'<img src="{img1_b64}" class="photo-img">' if img1_b64 else ''
             img2_tag = f'<img src="{img2_b64}" class="photo-img">' if img2_b64 else ''
-            photo_rows_html += f"""<tr class="photo-row">
+            photo_rows_html += f"""<tr>
 <td class="gapji-header">사진{photo_count}<br>재해정도</td>
-<td>{img1_tag}<br><br>전체사진</td>
+<td style="height:250px;">{img1_tag}<br><br>전체사진</td>
 <td>{img2_tag}<br><br>확대사진</td>
 </tr>"""
             photo_count += 1
             
     if not uploaded_accident and not uploaded_injury:
-        photo_rows_html = """<tr class="photo-row">
-<td class="gapji-header">사진1<br>사고상황도</td><td>사진 없음</td><td>사진 없음</td>
+        photo_rows_html = """<tr>
+<td class="gapji-header">사진1<br>사고상황도</td><td style="height:250px;">사진 없음</td><td>사진 없음</td>
 </tr>
-<tr class="photo-row">
-<td class="gapji-header">사진2<br>재해정도</td><td>사진 없음</td><td>사진 없음</td>
+<tr>
+<td class="gapji-header">사진2<br>재해정도</td><td style="height:250px;">사진 없음</td><td>사진 없음</td>
 </tr>"""
-    
+
+    # 엑셀과 100% 동일한 8칸 분할 병합 구조 HTML (절대 들여쓰기 금지)
     html_content = f"""<div class="print-area">
 <table class="gapji-table" border="1" cellpadding="5" cellspacing="0">
 <tr>
-<td colspan="7" style="border: none !important; padding: 0 !important; background-color: white !important;">
-<div style="display: flex; justify-content: space-between; align-items: flex-end;">
-<div class="main-title">재해발생보고서<br><br><span style="font-size:32px;">신건설(주)</span></div>
-<table class="sign-table" border="1">
-<tr>
-<td rowspan="2" class="sign-title">결<br><br>재</td>
-<td>안전담당</td><td>공사/공무</td><td>현장소장</td>
+<td colspan="8" style="border: none !important; font-size: 28px; font-weight: bold; text-align: center; padding-bottom: 20px;">재해발생보고서</td>
 </tr>
 <tr>
-<td style="height:45px;"></td><td></td><td></td>
+<td colspan="4" style="border: none !important; text-align: left; padding-left: 20px; font-size: 36px; font-weight: bold; vertical-align: bottom;">신건설(주)</td>
+<td colspan="4" style="border: none !important; text-align: right; vertical-align: bottom;">
+<table border="1" cellpadding="0" cellspacing="0" style="display: inline-table; margin: 0; text-align: center; border-collapse: collapse;">
+<tr>
+<td rowspan="2" style="background-color: #f0f0f0; font-weight: bold; width: 30px;">결<br><br>재</td>
+<td style="width: 70px; background-color: #f0f0f0;">안전담당</td>
+<td style="width: 70px; background-color: #f0f0f0;">공사/공무</td>
+<td style="width: 70px; background-color: #f0f0f0;">현장소장</td>
 </tr>
+<tr><td style="height: 50px;"></td><td></td><td></td></tr>
 </table>
-</div>
 </td>
 </tr>
 <tr>
-<td class="gapji-header" style="width: 12%;">현 장 명</td>
-<td colspan="3" style="font-size: 15px; font-weight: bold;">{site_name}</td>
+<td class="gapji-header" style="width: 12%;">현장명</td>
+<td colspan="3" style="width: 38%; font-weight: bold; font-size: 15px;">{site_name}</td>
 <td class="gapji-header" style="width: 12%;">사고장소</td>
-<td colspan="2">{accident_place}</td>
+<td colspan="3" style="width: 38%;">{accident_place}</td>
 </tr>
 <tr>
 <td class="gapji-header">사고일시</td>
 <td colspan="2">{accident_date.strftime('%y.%m.%d')}</td>
 <td>{formatted_time}분경</td>
 <td class="gapji-header">작업환경</td>
-<td colspan="2">{work_detail}</td>
+<td colspan="3">{work_detail}</td>
 </tr>
 <tr>
-<td class="gapji-header" style="height: 120px;">사고경위<br>(6하원칙에<br>의거작성)</td>
-<td colspan="6" class="text-left" style="line-height: 1.6;">{final_detail}</td>
+<td class="gapji-header" style="height: 90px;">사고경위<br>(6하원칙에<br>의거작성)</td>
+<td colspan="7" style="text-align: left; line-height: 1.6; padding: 10px;">{final_detail}</td>
 </tr>
 <tr>
-<td class="gapji-header" style="height: 60px;">사고원인</td>
-<td colspan="6" class="text-left">{accident_cause}</td>
+<td class="gapji-header" style="height: 50px;">사고원인</td>
+<td colspan="7" style="text-align: left; padding: 10px;">{accident_cause}</td>
 </tr>
 <tr>
 <td class="gapji-header">원청보고</td>
@@ -216,11 +215,20 @@ if st.button("📝 사고보고서 등록 및 갑지 서식 완성", type="prima
 <td class="gapji-header">보고일시</td>
 <td colspan="2">24.12.20 18시 20분경</td>
 <td class="gapji-header">보고방법</td>
-<td>전화보고</td>
+<td colspan="2">전화보고</td>
 </tr>
 <tr>
-<td class="gapji-header" style="height: 60px;">상해<br>피해정도<br>진단서</td>
-<td colspan="6" class="text-left">{injury_degree}</td>
+<td class="gapji-header" style="height: 50px;">상해<br>피해정도<br>진단서</td>
+<td colspan="7" style="text-align: left; padding: 10px;">{injury_degree}</td>
+</tr>
+<tr>
+<td class="gapji-header">교육사항</td>
+<td class="gapji-header">정기교육</td>
+<td>실시</td>
+<td class="gapji-header">특별교육</td>
+<td>실시</td>
+<td class="gapji-header">사고발생형태</td>
+<td colspan="2">{accident_type}</td>
 </tr>
 <tr>
 <td rowspan="3" class="gapji-header">피재자<br>인적사항</td>
@@ -228,48 +236,58 @@ if st.button("📝 사고보고서 등록 및 갑지 서식 완성", type="prima
 <td>{p_name_ko}</td>
 <td class="gapji-header">주민등록번호</td>
 <td>{p_birth_code}</td>
-<td class="gapji-header">사고발생형태</td>
-<td>{accident_type}</td>
+<td class="gapji-header">채용일자</td>
+<td colspan="2">{p_hire_date.strftime('%y.%m.%d')}</td>
 </tr>
 <tr>
 <td class="gapji-header">소속/직급</td>
 <td>{p_team}</td>
 <td class="gapji-header">직종</td>
 <td>{p_gongjong}</td>
-<td class="gapji-header">채용일자</td>
-<td>{p_hire_date.strftime('%y.%m.%d')}</td>
+<td class="gapji-header">채용기간</td>
+<td colspan="2">587</td>
 </tr>
 <tr>
 <td class="gapji-header">주소</td>
 <td colspan="3">인천시 부평구 갈산로 123번길 45</td>
 <td class="gapji-header">국적/체류코드</td>
-<td>{p_nation}</td>
+<td colspan="2">{p_nation}</td>
 </tr>
 <tr>
-<td class="gapji-header">목격자</td>
+<td rowspan="2" class="gapji-header">목격자<br>인적사항<br>(주변근로자)</td>
 <td class="gapji-header">성명</td>
 <td colspan="2">홍길동</td>
 <td class="gapji-header">주민등록번호</td>
-<td colspan="2">630310-1</td>
+<td colspan="3">630310-1</td>
+</tr>
+<tr>
+<td class="gapji-header">직종</td>
+<td colspan="2"></td>
+<td class="gapji-header">주소</td>
+<td colspan="3"></td>
 </tr>
 <tr>
 <td rowspan="3" class="gapji-header">재발방지<br>대책</td>
 <td class="gapji-header">기술적</td>
-<td colspan="5" class="text-left">{prevent_tech}</td>
+<td colspan="6" style="text-align: left; padding-left: 10px;">{prevent_tech}</td>
 </tr>
 <tr>
-<td class="gapji-header" style="height: 40px;">관리적</td>
-<td colspan="5"></td>
+<td class="gapji-header" style="height: 35px;">관리적</td>
+<td colspan="6"></td>
 </tr>
 <tr>
-<td class="gapji-header" style="height: 40px;">교육적</td>
-<td colspan="5"></td>
+<td class="gapji-header" style="height: 35px;">교육적</td>
+<td colspan="6"></td>
+</tr>
+<tr>
+<td class="gapji-header" style="height: 40px;">첨부서류</td>
+<td colspan="7" style="text-align: left; padding-left: 10px;">추후 진단서 첨부 예정</td>
 </tr>
 </table>
 <div class="page-break"></div>
-<table class="gapji-table" border="1" cellpadding="5" cellspacing="0">
+<table class="gapji-table" border="1" cellpadding="5" cellspacing="0" style="margin-top:0px;">
 <tr>
-<td colspan="3" class="photo-title" style="background-color: white !important;">사고현장 상황도</td>
+<td colspan="3" style="font-size: 26px; font-weight: bold; padding: 15px; border: none !important; text-align:center;">사고현장 상황도</td>
 </tr>
 <tr>
 <td class="gapji-header" style="width: 15%;">일 시</td>
@@ -277,8 +295,8 @@ if st.button("📝 사고보고서 등록 및 갑지 서식 완성", type="prima
 <td class="gapji-header" style="width: 43%;">사 고 장 소 : {accident_place}</td>
 </tr>
 <tr>
-<td class="gapji-header" style="height: 50px;">상황도</td>
-<td colspan="2" class="text-left">{accident_cause}</td>
+<td class="gapji-header" style="height: 60px;">상황도</td>
+<td colspan="2" style="text-align: left; padding: 10px;">{accident_cause}</td>
 </tr>
 {photo_rows_html}
 </table>
