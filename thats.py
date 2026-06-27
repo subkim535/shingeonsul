@@ -25,22 +25,29 @@ st.markdown("""
         display: none !important; 
     }
     
-    /* 2. Streamlit 기본 여백 완벽 제거 (이게 공백의 원인 중 하나) */
-    .block-container, .main { 
+    /* 2. [가장 중요] 스트림릿이 1페이지 밑으로 내용을 잘라버리는 현상 완벽 차단 */
+    html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"], [data-testid="stMainBlockContainer"] {
+        height: auto !important;
+        min-height: 100% !important;
+        overflow: visible !important;
+        position: static !important;
         padding: 0 !important; 
         margin: 0 !important; 
         max-width: 100% !important; 
     }
     
-    /* 3. [핵심 마법] '인쇄용 표(print-area)'가 들어있지 않은 모든 입력창, 버튼, 체크박스 영역을 "공간째로" 완전 삭제 */
+    /* 3. '인쇄용 표(print-area)'가 들어있지 않은 모든 입력창, 버튼, 체크박스 영역 완전 삭제 */
     .element-container:not(:has(.print-area)) {
         display: none !important;
     }
     
-    /* 4. 표가 페이지 중간에 찢어지지 않도록 보호 */
+    /* 4. 확실한 페이지 나누기 명령어 */
     .gapji-table { page-break-inside: auto; }
     tr { page-break-inside: avoid; page-break-after: auto; }
-    .page-break { page-break-before: always !important; } 
+    .page-break { 
+        break-before: page !important; 
+        page-break-before: always !important; 
+    } 
     
     /* 5. 엑셀처럼 흑백 선/배경색 강제 유지 */
     * { 
@@ -62,7 +69,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🚨 신건설 통합관리 프로그램")
-st.subheader("사고보고서 입력 시스템 (Ver.7 - 여백 소멸 패치)")
+st.subheader("사고보고서 입력 시스템 (Ver.8 - 페이지 잘림 완벽 패치)")
 
 st.markdown("### 📋 전자결재 사전 확인 (화면 검토용)")
 con_col1, con_col2 = st.columns(2)
@@ -133,7 +140,6 @@ if st.button("📝 사고보고서 등록 및 갑지 서식 완성", type="prima
     photo_rows_html = ""
     photo_count = 1
     
-    # 사진 행 HTML 생성 로직
     if uploaded_accident:
         for i in range(0, len(uploaded_accident), 2):
             img1_b64 = img_to_base64(uploaded_accident[i])
@@ -168,7 +174,6 @@ if st.button("📝 사고보고서 등록 및 갑지 서식 완성", type="prima
 <td class="gapji-header">사진2<br>재해정도</td><td style="height:250px;">사진 없음</td><td>사진 없음</td>
 </tr>"""
 
-    # 엑셀과 100% 동일한 8칸 분할 병합 구조 HTML (절대 들여쓰기 금지)
     html_content = f"""<div class="print-area">
 <table class="gapji-table" border="1" cellpadding="5" cellspacing="0">
 <tr>
