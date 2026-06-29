@@ -27,7 +27,7 @@ for col in required_cols:
     if col not in df.columns:
         df[col] = "대기"
 
-# CSS는 이제 스트림릿 화면(미리보기) 용도로만 사용됩니다.
+# 3. Streamlit 화면 미리보기용 CSS
 st.markdown("""
 <style>
 .gapji-table { width: 100% !important; border-collapse: collapse !important; font-family: 'Malgun Gothic', sans-serif; font-size: 14px; color: #000; border: 2px solid #000 !important; margin-bottom: 20px; }
@@ -177,6 +177,10 @@ with menu[2]:
                 '</table>'
             ])
 
+            # 🌟 스트림릿 화면에 미리보기 출력
+            st.subheader("👀 보고서 미리보기")
+            st.markdown(html_1 + "<br><br>" + html_2, unsafe_allow_html=True)
+
             # 🌟 스트림릿 독립적인 순수 HTML 문서 생성 (자동 인쇄 스크립트 포함)
             standalone_html = f"""
             <!DOCTYPE html>
@@ -206,7 +210,7 @@ with menu[2]:
             # HTML을 Base64로 인코딩하여 다운로드/새창 열기 버튼 생성
             b64_html = base64.b64encode(standalone_html.encode('utf-8')).decode('utf-8')
             download_link = f"""
-            <div style="text-align: center; margin-top: 20px;">
+            <div style="text-align: center; margin-top: 20px; margin-bottom: 40px;">
                 <a href="data:text/html;base64,{b64_html}" download="재해발생보고서_{row.get('날짜', '')[:8]}.html" 
                    style="display: inline-block; padding: 15px 30px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 8px; font-size: 18px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                    🖨️ 여기를 클릭하여 완벽한 비율로 인쇄하기 (파일 다운로드)
@@ -216,4 +220,4 @@ with menu[2]:
             """
             
             st.markdown(download_link, unsafe_allow_html=True)
-            st.success("미리보기가 생성되었습니다. 위 초록색 버튼을 눌러 인쇄 파일을 다운로드하세요.")
+            st.success("미리보기가 생성되었습니다. 확인 후 위 초록색 버튼을 눌러 인쇄 파일을 다운로드하세요.")
