@@ -12,7 +12,7 @@ st.set_page_config(page_title="신건설 통합 결재 관리 시스템", layout
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
     df = conn.read(ttl=0)
-    df = df.fillna("") # 빈칸(NaN) 에러 방지
+    df = df.fillna("")
 except Exception as e:
     st.error(f"구글 시트 연동 실패: {e}")
     st.stop()
@@ -27,47 +27,9 @@ for col in required_cols:
     if col not in df.columns:
         df[col] = "대기"
 
-# 3. 🌟 [여백 꽉 채우기 초강력 CSS] Streamlit 숨은 여백 완전 제거
+# CSS는 이제 스트림릿 화면(미리보기) 용도로만 사용됩니다.
 st.markdown("""
 <style>
-@media print {
-    /* 1. 브라우저 여백 강제 0 */
-    @page { size: A4; margin: 0 !important; }
-    
-    /* 2. Streamlit의 모든 최상위 래퍼의 숨은 여백, 패딩, 위치 속성 완전 초기화 (가장 중요) */
-    html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .block-container, .main {
-        padding: 0 !important;
-        margin: 0 !important;
-        position: static !important; /* absolute를 밀어내는 상대 좌표 해제 */
-        transform: none !important;
-        overflow: visible !important;
-        height: auto !important;
-    }
-    
-    /* 3. 헤더 및 불필요 UI 원천 차단 */
-    header, [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stSidebar"] { 
-        display: none !important; 
-    }
-
-    /* 4. 보고서 외 다른 요소 모두 숨김 */
-    body * { visibility: hidden !important; }
-    #printable-report, #printable-report * { visibility: visible !important; }
-    
-    /* 5. A4 최상단 강제 고정 */
-    #printable-report {
-        position: absolute !important;
-        left: 0 !important;
-        top: 0 !important;
-        width: 100vw !important;
-        margin: 0 !important;
-        padding: 10mm 15mm !important; /* 문서가 잘리지 않을 최소 여백 */
-        box-sizing: border-box !important;
-    }
-    
-    .page-break { page-break-before: always !important; }
-}
-
-/* 기존 테이블 디자인 유지 */
 .gapji-table { width: 100% !important; border-collapse: collapse !important; font-family: 'Malgun Gothic', sans-serif; font-size: 14px; color: #000; border: 2px solid #000 !important; margin-bottom: 20px; }
 .gapji-table th, .gapji-table td { border: 1px solid #000 !important; padding: 7px !important; text-align: center; vertical-align: middle; }
 .gapji-header { background-color: #f0f0f0 !important; font-weight: bold; }
@@ -165,8 +127,7 @@ with menu[2]:
             inner += '</table>'
             return f'<tr><td class="gapji-header">{label}</td><td style="padding:0;">{inner}</td></tr>'
 
-        if st.button("🖨️ 보고서 서식 불러오기", type="primary", use_container_width=True):
-            
+        if st.button("🖨️ 보고서 생성 및 인쇄 준비", type="primary", use_container_width=True):
             def get_sign(val):
                 val_str = str(val).strip()
                 if val_str in ["승인", "확인"]:
@@ -216,13 +177,43 @@ with menu[2]:
                 '</table>'
             ])
 
-            final_html = f"""
-            <div id="printable-report">
+            # 🌟 스트림릿 독립적인 순수 HTML 문서 생성 (자동 인쇄 스크립트 포함)
+            standalone_html = f"""
+            <!DOCTYPE html>
+            <html lang="ko">
+            <head>
+                <meta charset="UTF-8">
+                <title>재해발생보고서 인쇄</title>
+                <style>
+                    @page {{ size: A4; margin: 10mm 15mm; }}
+                    body {{ margin: 0; padding: 0; background: #fff; }}
+                    .gapji-table {{ width: 100%; border-collapse: collapse; font-family: 'Malgun Gothic', sans-serif; font-size: 14px; color: #000; border: 2px solid #000; margin-bottom: 20px; }}
+                    .gapji-table th, .gapji-table td {{ border: 1px solid #000; padding: 7px; text-align: center; vertical-align: middle; }}
+                    .gapji-header {{ background-color: #f0f0f0; font-weight: bold; }}
+                    .grid-photo {{ width: 100%; height: 280px; object-fit: contain; background-color: #fafafa; display: block; margin: 0 auto; }}
+                    .photo-blank {{ height: 280px; display: flex; justify-content: center; align-items: center; color: #999; font-size: 13px; background-color: #fafafa; }}
+                    .page-break {{ page-break-before: always; }}
+                </style>
+            </head>
+            <body onload="window.print()">
                 {html_1}
                 <div class="page-break"></div>
                 {html_2}
+            </body>
+            </html>
+            """
+            
+            # HTML을 Base64로 인코딩하여 다운로드/새창 열기 버튼 생성
+            b64_html = base64.b64encode(standalone_html.encode('utf-8')).decode('utf-8')
+            download_link = f"""
+            <div style="text-align: center; margin-top: 20px;">
+                <a href="data:text/html;base64,{b64_html}" download="재해발생보고서_{row.get('날짜', '')[:8]}.html" 
+                   style="display: inline-block; padding: 15px 30px; background-color: #4CAF50; color: white; text-decoration: none; border-radius: 8px; font-size: 18px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                   🖨️ 여기를 클릭하여 완벽한 비율로 인쇄하기 (파일 다운로드)
+                </a>
+                <p style="margin-top: 10px; color: gray; font-size: 14px;">다운로드된 HTML 파일을 열면 여백 없이 깔끔하게 자동 인쇄 창이 뜹니다.</p>
             </div>
             """
             
-            st.info("💡 단축키 `Ctrl + P`를 누르신 후 설정에서 **'여백 없음', '머리글/바닥글 해제'**를 적용해주세요.")
-            st.markdown(final_html.replace('\n', ''), unsafe_allow_html=True)
+            st.markdown(download_link, unsafe_allow_html=True)
+            st.success("미리보기가 생성되었습니다. 위 초록색 버튼을 눌러 인쇄 파일을 다운로드하세요.")
