@@ -3,6 +3,7 @@ import pandas as pd
 from streamlit_gsheets import GSheetsConnection
 import base64
 import datetime
+import streamlit.components.v1 as components
 from datetime import date, datetime as dt
 
 # 1. 페이지 기본 설정
@@ -17,6 +18,7 @@ except Exception as e:
     st.error(f"구글 시트 연동 실패: {e}")
     st.stop()
 
+# 💡 필수 열 자동 생성
 required_cols = [
     "ID", "날짜", "현장명", "사고장소", "사고경위", "작업환경", "사고원인", 
     "사고유형", "상해피해정도", "피재자", "주민번호_앞자리", "소속_직급", 
@@ -27,41 +29,9 @@ for col in required_cols:
     if col not in df.columns:
         df[col] = "대기"
 
-# 3. 🌟 [잘림 완전 방지] 스나이퍼 프린트 CSS 기법 적용
+# 스트림릿 미리보기용 디자인 CSS
 st.markdown("""
 <style>
-@media print {
-    /* 웹페이지의 모든 기본 요소를 투명하게 숨김 */
-    body * {
-        visibility: hidden !important;
-    }
-    
-    /* 오직 우리가 만든 보고서(printable-report)와 그 안의 내용만 보이게 설정 */
-    #printable-report, #printable-report * {
-        visibility: visible !important;
-    }
-    
-    /* 보고서를 화면 맨 위, 왼쪽 끝으로 강제 고정하여 잘림 현상 원천 차단 */
-    #printable-report {
-        position: absolute !important;
-        left: 0 !important;
-        top: 0 !important;
-        width: 100% !important;
-        height: auto !important;
-    }
-    
-    html, body {
-        height: auto !important;
-        overflow: visible !important;
-    }
-    
-    .page-break { 
-        page-break-before: always !important; 
-        break-before: page !important; 
-    }
-    @page { size: A4; margin: 10mm; }
-}
-
 .gapji-table { width: 100% !important; border-collapse: collapse !important; font-family: 'Malgun Gothic', sans-serif; font-size: 13px; color: #000; border: 2px solid #000 !important; margin-bottom: 20px; }
 .gapji-table th, .gapji-table td { border: 1px solid #000 !important; padding: 6px !important; text-align: center; vertical-align: middle; }
 .gapji-header { background-color: #f0f0f0 !important; font-weight: bold; }
@@ -159,9 +129,8 @@ with menu[2]:
             inner += '</table>'
             return f'<tr><td class="gapji-header">{label}</td><td style="padding:0;">{inner}</td></tr>'
 
-        if st.button("🖨️ 보고서 서식 완성하기 (클릭 후 Ctrl+P)", type="primary", use_container_width=True):
+        if st.button("🖨️ 보고서 서식 완성하기", type="primary", use_container_width=True):
             
-            # 🌟 [버그 해결] "승인" 또는 "확인" 이라는 글자가 있으면 도장을 찍도록 수정
             def get_sign(val):
                 val_str = str(val).strip()
                 if val_str in ["승인", "확인"]:
@@ -211,13 +180,66 @@ with menu[2]:
                 '</table>'
             ])
 
-            # 🌟 [잘림 방지 핵심 로직] 하나의 거대한 #printable-report 컨테이너로 묶어서 출력
-            final_html = f"""
-            <div id="printable-report">
-                {html_1}
-                <div class="page-break"></div>
-                {html_2}
+            # 전체 HTML 묶기
+            final_html = html_1 + '<div class="page-break"></div>' + html_2
+            
+            # 자바스크립트용으로 문자열 안전하게 처리
+            safe_html = final_html.replace('\n', '').replace('`', '\\`').replace('$', '\\$')
+
+            # 🌟 [버그 원천 차단] 자바스크립트를 이용해 안전하게 팝업창 띄우기
+            js_code = f"""
+            <div>
+                <button onclick="openPrintWindow()" style="width: 100%; padding: 15px; font-size: 18px; font-weight: bold; background-color: #4CAF50; color: white; border: none; border-radius: 8px; cursor: pointer; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);">
+                    🖨️ 완벽한 인쇄하기 (클릭 시 새 창이 열립니다)
+                </button>
             </div>
+            <script>
+            function openPrintWindow() {{
+                var printWindow = window.open('', '_blank');
+                if (printWindow) {{
+                    printWindow.document.write(`
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <title>재해발생보고서 인쇄</title>
+                            <style>
+                                body {{ font-family: 'Malgun Gothic', sans-serif; margin: 0; padding: 20px; }}
+                                .gapji-table {{ width: 100%; border-collapse: collapse; font-size: 13px; color: #000; border: 2px solid #000; margin-bottom: 20px; }}
+                                .gapji-table th, .gapji-table td {{ border: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle; }}
+                                .gapji-header {{ background-color: #f0f0f0; font-weight: bold; }}
+                                .grid-photo {{ width: 100%; height: 280px; object-fit: contain; background-color: #fafafa; display: block; margin: 0 auto; }}
+                                .photo-blank {{ height: 280px; display: flex; justify-content: center; align-items: center; color: #999; font-size: 12px; background-color: #fafafa; }}
+                                .page-break {{ page-break-before: always; }}
+                                @media print {{
+                                    @page {{ size: A4; margin: 10mm; }}
+                                }}
+                            </style>
+                        </head>
+                        <body>
+                            {safe_html}
+                            <script>
+                                // 이미지가 로딩될 시간을 0.5초 준 뒤 인쇄창을 띄웁니다
+                                setTimeout(function() {{
+                                    window.print();
+                                }}, 500);
+                            </script>
+                        </body>
+                        </html>
+                    `);
+                    printWindow.document.close();
+                }} else {{
+                    alert("팝업 차단이 설정되어 있습니다. 화면 오른쪽 위 주소창에서 팝업을 허용해주세요!");
+                }}
+            }}
+            </script>
             """
             
-            st.markdown(final_html.replace('\n', ''), unsafe_allow_html=True)
+            # 스트림릿에 버튼 렌더링
+            components.html(js_code, height=80)
+            st.info("👆 위 초록색 버튼을 누르면 인쇄용 새 창이 열립니다. (팝업이 차단되었다면 주소창 우측에서 '팝업 허용'을 눌러주세요)")
+            
+            # 스트림릿 미리보기용 (여기서 잘려 보여도 새 창 인쇄는 정상 작동함)
+            st.markdown("---")
+            st.markdown("### 🔍 출력 미리보기")
+            st.markdown(html_1, unsafe_allow_html=True)
+            st.markdown(html_2, unsafe_allow_html=True)
