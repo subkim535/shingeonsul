@@ -27,46 +27,35 @@ for col in required_cols:
     if col not in df.columns:
         df[col] = "대기"
 
-# 3. 🌟 [잘림 완전 방지] 스나이퍼 프린트 CSS 기법 적용
+# 3. 🌟 [여백 꽉 채우기 CSS] 스트림릿 Print 메뉴에 최적화
 st.markdown("""
 <style>
 @media print {
-    /* 웹페이지의 모든 기본 요소를 투명하게 숨김 */
-    body * {
-        visibility: hidden !important;
-    }
+    /* 기존 족쇄 해제 */
+    body * { visibility: hidden !important; }
+    #printable-report, #printable-report * { visibility: visible !important; }
     
-    /* 오직 우리가 만든 보고서(printable-report)와 그 안의 내용만 보이게 설정 */
-    #printable-report, #printable-report * {
-        visibility: visible !important;
-    }
-    
-    /* 보고서를 화면 맨 위, 왼쪽 끝으로 강제 고정하여 잘림 현상 원천 차단 */
+    /* A4 꽉 차게 위치 및 크기 강제 조정 */
     #printable-report {
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
-        width: 100% !important;
-        height: auto !important;
+        width: 100vw !important; /* 가로를 용지에 꽉 채움 */
+        padding: 5mm 15mm !important; /* 상하좌우 적절한 여백만 남김 */
+        box-sizing: border-box !important;
     }
     
-    html, body {
-        height: auto !important;
-        overflow: visible !important;
-    }
+    .page-break { page-break-before: always !important; }
     
-    .page-break { 
-        page-break-before: always !important; 
-        break-before: page !important; 
-    }
-    @page { size: A4; margin: 10mm; }
+    /* 시스템 여백 최소화 */
+    @page { size: A4; margin: 0; }
 }
 
-.gapji-table { width: 100% !important; border-collapse: collapse !important; font-family: 'Malgun Gothic', sans-serif; font-size: 13px; color: #000; border: 2px solid #000 !important; margin-bottom: 20px; }
-.gapji-table th, .gapji-table td { border: 1px solid #000 !important; padding: 6px !important; text-align: center; vertical-align: middle; }
+.gapji-table { width: 100% !important; border-collapse: collapse !important; font-family: 'Malgun Gothic', sans-serif; font-size: 14px; color: #000; border: 2px solid #000 !important; margin-bottom: 20px; }
+.gapji-table th, .gapji-table td { border: 1px solid #000 !important; padding: 7px !important; text-align: center; vertical-align: middle; }
 .gapji-header { background-color: #f0f0f0 !important; font-weight: bold; }
 .grid-photo { width: 100%; height: 280px; object-fit: contain; background-color: #fafafa; display: block; margin: 0 auto; }
-.photo-blank { height: 280px; display: flex; justify-content: center; align-items: center; color: #999; font-size: 12px; background-color: #fafafa; }
+.photo-blank { height: 280px; display: flex; justify-content: center; align-items: center; color: #999; font-size: 13px; background-color: #fafafa; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -120,7 +109,7 @@ with menu[0]:
             st.success("등록 완료! 페이지를 새로고침하세요.")
 
 with menu[1]:
-    st.header("📊 전사 사고 대장 및 7인 실시간 결재 현황")
+    st.header("📊 전사 사고 대장 및 실시간 결재 현황")
     edited_df = st.data_editor(df, use_container_width=True)
     if st.button("💾 변경된 사항 저장"):
         conn.update(data=edited_df)
@@ -159,9 +148,8 @@ with menu[2]:
             inner += '</table>'
             return f'<tr><td class="gapji-header">{label}</td><td style="padding:0;">{inner}</td></tr>'
 
-        if st.button("🖨️ 보고서 서식 완성하기 (클릭 후 Ctrl+P)", type="primary", use_container_width=True):
+        if st.button("🖨️ 보고서 서식 불러오기", type="primary", use_container_width=True):
             
-            # 🌟 [버그 해결] "승인" 또는 "확인" 이라는 글자가 있으면 도장을 찍도록 수정
             def get_sign(val):
                 val_str = str(val).strip()
                 if val_str in ["승인", "확인"]:
@@ -211,7 +199,6 @@ with menu[2]:
                 '</table>'
             ])
 
-            # 🌟 [잘림 방지 핵심 로직] 하나의 거대한 #printable-report 컨테이너로 묶어서 출력
             final_html = f"""
             <div id="printable-report">
                 {html_1}
@@ -220,4 +207,5 @@ with menu[2]:
             </div>
             """
             
+            st.info("💡 우측 상단 메뉴(점 3개)를 누르고 **'Print'**를 클릭하시면 완벽한 비율로 인쇄됩니다!")
             st.markdown(final_html.replace('\n', ''), unsafe_allow_html=True)
