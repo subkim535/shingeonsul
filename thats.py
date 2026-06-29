@@ -31,8 +31,11 @@ for col in required_cols:
 st.markdown("""
 <style>
 @media print {
-    /* 기존 족쇄 해제 */
+    /* 기존 족쇄 해제 및 Streamlit 기본 패딩/헤더 제거 */
     body * { visibility: hidden !important; }
+    header { display: none !important; } /* 상단 헤더 숨김 */
+    .block-container { padding: 0 !important; margin: 0 !important; } /* 상단 여백 제거 */
+    
     #printable-report, #printable-report * { visibility: visible !important; }
     
     /* A4 꽉 차게 위치 및 크기 강제 조정 */
@@ -40,6 +43,7 @@ st.markdown("""
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
+        margin-top: 0 !important;
         width: 100vw !important; /* 가로를 용지에 꽉 채움 */
         padding: 5mm 15mm !important; /* 상하좌우 적절한 여백만 남김 */
         box-sizing: border-box !important;
@@ -110,7 +114,8 @@ with menu[0]:
 
 with menu[1]:
     st.header("📊 전사 사고 대장 및 실시간 결재 현황")
-    edited_df = st.data_editor(df, use_container_width=True)
+    # 행 삭제 기능(num_rows="dynamic")이 추가된 부분
+    edited_df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
     if st.button("💾 변경된 사항 저장"):
         conn.update(data=edited_df)
         st.success("저장 완료!")
