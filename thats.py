@@ -27,36 +27,41 @@ for col in required_cols:
     if col not in df.columns:
         df[col] = "대기"
 
-# 3. 🌟 [여백 꽉 채우기 CSS] 스트림릿 Print 메뉴 및 브라우저 인쇄 최적화
+# 3. 🌟 [여백 꽉 채우기 초강력 CSS] Streamlit 숨은 여백 완전 제거
 st.markdown("""
 <style>
 @media print {
-    /* 1. 브라우저 기본 여백 통제 */
+    /* 1. 브라우저 여백 강제 0 */
     @page { size: A4; margin: 0 !important; }
     
-    /* 2. Streamlit 최상위 컨테이너 여백 완전히 0으로 초기화 */
-    body, html, .appview-container, .main, .block-container {
+    /* 2. Streamlit의 모든 최상위 래퍼의 숨은 여백, 패딩, 위치 속성 완전 초기화 (가장 중요) */
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .block-container, .main {
         padding: 0 !important;
         margin: 0 !important;
-        max-width: 100% !important;
+        position: static !important; /* absolute를 밀어내는 상대 좌표 해제 */
+        transform: none !important;
+        overflow: visible !important;
+        height: auto !important;
     }
     
-    /* 3. 상단 UI(헤더) 원천 차단 */
-    header, [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"] { 
+    /* 3. 헤더 및 불필요 UI 원천 차단 */
+    header, [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stSidebar"] { 
         display: none !important; 
     }
 
-    /* 4. 보고서 외 모든 요소 숨김 */
+    /* 4. 보고서 외 다른 요소 모두 숨김 */
     body * { visibility: hidden !important; }
     #printable-report, #printable-report * { visibility: visible !important; }
     
-    /* 5. 보고서를 화면 맨 위 좌측으로 강제 고정 */
+    /* 5. A4 최상단 강제 고정 */
     #printable-report {
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
         width: 100vw !important;
-        padding: 10mm 10mm !important; /* 인쇄 시 잘리지 않을 최소 여백만 부여 */
+        margin: 0 !important;
+        padding: 10mm 15mm !important; /* 문서가 잘리지 않을 최소 여백 */
+        box-sizing: border-box !important;
     }
     
     .page-break { page-break-before: always !important; }
@@ -122,7 +127,6 @@ with menu[0]:
 
 with menu[1]:
     st.header("📊 전사 사고 대장 및 실시간 결재 현황")
-    # 🌟 행 삭제/추가 기능 (좌측 체크박스 선택 후 삭제)
     edited_df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
     if st.button("💾 변경된 사항 저장"):
         conn.update(data=edited_df)
