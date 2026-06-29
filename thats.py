@@ -17,7 +17,6 @@ except Exception as e:
     st.error(f"구글 시트 연동 실패: {e}")
     st.stop()
 
-# 💡 필수 열 자동 생성
 required_cols = [
     "ID", "날짜", "현장명", "사고장소", "사고경위", "작업환경", "사고원인", 
     "사고유형", "상해피해정도", "피재자", "주민번호_앞자리", "소속_직급", 
@@ -28,9 +27,41 @@ for col in required_cols:
     if col not in df.columns:
         df[col] = "대기"
 
-# CSS (화면용)
+# 3. 🌟 [잘림 완전 방지] 스나이퍼 프린트 CSS 기법 적용
 st.markdown("""
 <style>
+@media print {
+    /* 웹페이지의 모든 기본 요소를 투명하게 숨김 */
+    body * {
+        visibility: hidden !important;
+    }
+    
+    /* 오직 우리가 만든 보고서(printable-report)와 그 안의 내용만 보이게 설정 */
+    #printable-report, #printable-report * {
+        visibility: visible !important;
+    }
+    
+    /* 보고서를 화면 맨 위, 왼쪽 끝으로 강제 고정하여 잘림 현상 원천 차단 */
+    #printable-report {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+    }
+    
+    html, body {
+        height: auto !important;
+        overflow: visible !important;
+    }
+    
+    .page-break { 
+        page-break-before: always !important; 
+        break-before: page !important; 
+    }
+    @page { size: A4; margin: 10mm; }
+}
+
 .gapji-table { width: 100% !important; border-collapse: collapse !important; font-family: 'Malgun Gothic', sans-serif; font-size: 13px; color: #000; border: 2px solid #000 !important; margin-bottom: 20px; }
 .gapji-table th, .gapji-table td { border: 1px solid #000 !important; padding: 6px !important; text-align: center; vertical-align: middle; }
 .gapji-header { background-color: #f0f0f0 !important; font-weight: bold; }
@@ -128,15 +159,15 @@ with menu[2]:
             inner += '</table>'
             return f'<tr><td class="gapji-header">{label}</td><td style="padding:0;">{inner}</td></tr>'
 
-        if st.button("🖨️ 보고서 서식 완성하기", type="primary", use_container_width=True):
+        if st.button("🖨️ 보고서 서식 완성하기 (클릭 후 Ctrl+P)", type="primary", use_container_width=True):
             
+            # 🌟 [버그 해결] "승인" 또는 "확인" 이라는 글자가 있으면 도장을 찍도록 수정
             def get_sign(val):
                 val_str = str(val).strip()
                 if val_str in ["승인", "확인"]:
                     return "<b>[확인]<br><span style='font-size:9px; color:gray;'>signed</span></b>"
                 return ""
             
-            # 1페이지 HTML
             html_1 = ''.join([
                 '<table class="gapji-table">',
                 '<tr><td colspan="8" style="font-size: 26px; font-weight: bold; border:none; padding-bottom: 15px;">재해발생보고서</td></tr>',
@@ -168,7 +199,6 @@ with menu[2]:
                 '</table>'
             ])
 
-            # 2페이지 HTML
             html_2 = ''.join([
                 '<table class="gapji-table" style="table-layout:fixed; width:100%;">',
                 '<colgroup><col style="width:15%;"><col style="width:85%;"></colgroup>',
@@ -181,49 +211,13 @@ with menu[2]:
                 '</table>'
             ])
 
-            # 🌟 [잘림 방지 초필살기] 완벽한 인쇄용 순수 HTML 페이지 생성
-            raw_html_for_print = f"""
-            <!DOCTYPE html>
-            <html lang="ko">
-            <head>
-            <meta charset="UTF-8">
-            <title>재해발생보고서 인쇄</title>
-            <style>
-                body {{ font-family: 'Malgun Gothic', sans-serif; background: #fff; margin: 0; padding: 20px; }}
-                .gapji-table {{ width: 100%; border-collapse: collapse; font-size: 13px; color: #000; border: 2px solid #000; margin-bottom: 20px; }}
-                .gapji-table th, .gapji-table td {{ border: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle; }}
-                .gapji-header {{ background-color: #f0f0f0; font-weight: bold; }}
-                .grid-photo {{ width: 100%; height: 280px; object-fit: contain; background-color: #fafafa; display: block; margin: 0 auto; }}
-                .photo-blank {{ height: 280px; display: flex; justify-content: center; align-items: center; color: #999; font-size: 12px; background-color: #fafafa; }}
-                .page-break {{ page-break-before: always; }}
-                @media print {{
-                    @page {{ size: A4; margin: 10mm; }}
-                    .no-print {{ display: none !important; }}
-                }}
-            </style>
-            </head>
-            <body>
-                <div class="no-print" style="text-align:center; margin-bottom: 20px;">
-                    <button onclick="window.print()" style="padding: 12px 24px; font-size: 18px; font-weight: bold; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">🖨️ 인쇄하기 (또는 Ctrl+P)</button>
-                    <p style="color: gray; font-size: 12px;">이 창은 스트림릿의 방해를 받지 않는 깨끗한 인쇄 전용 창입니다.</p>
-                </div>
+            # 🌟 [잘림 방지 핵심 로직] 하나의 거대한 #printable-report 컨테이너로 묶어서 출력
+            final_html = f"""
+            <div id="printable-report">
                 {html_1}
                 <div class="page-break"></div>
                 {html_2}
-            </body>
-            </html>
+            </div>
             """
             
-            # HTML을 Base64 링크로 변환하여 사용자에게 제공
-            b64_html = base64.b64encode(raw_html_for_print.encode('utf-8')).decode('utf-8')
-            print_link = f'''
-            <a href="data:text/html;base64,{b64_html}" target="_blank" style="display: block; text-align: center; padding: 15px; background-color: #00C853; color: white; text-decoration: none; border-radius: 5px; font-size: 18px; font-weight: bold; margin-top: 10px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                👉 여기를 클릭하여 [새 창에서 완벽하게 인쇄하기] (잘림 100% 방지)
-            </a>
-            '''
-            
-            # 스트림릿 화면에도 미리보기 표시 및 인쇄 버튼 띄우기
-            st.markdown(print_link, unsafe_allow_html=True)
-            st.info("👆 위 초록색 버튼을 누르면 새 창이 열립니다. 그 새 창에서 인쇄하시면 페이지가 절대 잘리지 않습니다!")
-            st.markdown(html_1, unsafe_allow_html=True)
-            st.markdown(html_2, unsafe_allow_html=True)
+            st.markdown(final_html.replace('\n', ''), unsafe_allow_html=True)
