@@ -27,39 +27,42 @@ for col in required_cols:
     if col not in df.columns:
         df[col] = "대기"
 
-# 3. 🌟 [여백 꽉 채우기 CSS] 스트림릿 Print 메뉴 및 Ctrl+P 최적화
+# 3. 🌟 [여백 꽉 채우기 CSS] 스트림릿 Print 메뉴 및 브라우저 인쇄 최적화
 st.markdown("""
 <style>
 @media print {
-    /* 1. Streamlit 상단 고정 헤더 및 여백 완전 제거 (빈 공간 방지) */
-    header, [data-testid="stHeader"], [data-testid="stDecoration"], [data-testid="stToolbar"] { 
+    /* 1. 브라우저 기본 여백 통제 */
+    @page { size: A4; margin: 0 !important; }
+    
+    /* 2. Streamlit 최상위 컨테이너 여백 완전히 0으로 초기화 */
+    body, html, .appview-container, .main, .block-container {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+    }
+    
+    /* 3. 상단 UI(헤더) 원천 차단 */
+    header, [data-testid="stHeader"], [data-testid="stToolbar"], [data-testid="stDecoration"] { 
         display: none !important; 
     }
-    .block-container { 
-        padding-top: 0 !important; 
-        margin-top: 0 !important; 
-    }
 
-    /* 2. 화면 내 다른 요소 숨김 및 보고서만 표시 */
+    /* 4. 보고서 외 모든 요소 숨김 */
     body * { visibility: hidden !important; }
     #printable-report, #printable-report * { visibility: visible !important; }
     
-    /* 3. 남은 빈 공간을 무시하고 A4 용지 최상단으로 강제 배치 */
+    /* 5. 보고서를 화면 맨 위 좌측으로 강제 고정 */
     #printable-report {
         position: absolute !important;
         left: 0 !important;
         top: 0 !important;
-        width: 100% !important;
-        padding: 0 !important;
-        margin: 0 !important;
+        width: 100vw !important;
+        padding: 10mm 10mm !important; /* 인쇄 시 잘리지 않을 최소 여백만 부여 */
     }
     
-    /* 4. A4 규격 및 페이지 넘김 설정 */
-    @page { size: A4; margin: 10mm 15mm; }
     .page-break { page-break-before: always !important; }
 }
 
-/* 아래는 기존 테이블 디자인 유지 */
+/* 기존 테이블 디자인 유지 */
 .gapji-table { width: 100% !important; border-collapse: collapse !important; font-family: 'Malgun Gothic', sans-serif; font-size: 14px; color: #000; border: 2px solid #000 !important; margin-bottom: 20px; }
 .gapji-table th, .gapji-table td { border: 1px solid #000 !important; padding: 7px !important; text-align: center; vertical-align: middle; }
 .gapji-header { background-color: #f0f0f0 !important; font-weight: bold; }
@@ -119,7 +122,7 @@ with menu[0]:
 
 with menu[1]:
     st.header("📊 전사 사고 대장 및 실시간 결재 현황")
-    # 🌟 행 추가/삭제 기능 적용 (좌측 체크박스 선택 후 Delete 키 또는 휴지통 아이콘 클릭)
+    # 🌟 행 삭제/추가 기능 (좌측 체크박스 선택 후 삭제)
     edited_df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
     if st.button("💾 변경된 사항 저장"):
         conn.update(data=edited_df)
@@ -217,5 +220,5 @@ with menu[2]:
             </div>
             """
             
-            st.info("💡 단축키 `Ctrl + P` 또는 우측 상단 메뉴의 **'Print'**를 클릭하시면 여백 없이 A4 비율로 인쇄됩니다.")
+            st.info("💡 단축키 `Ctrl + P`를 누르신 후 설정에서 **'여백 없음', '머리글/바닥글 해제'**를 적용해주세요.")
             st.markdown(final_html.replace('\n', ''), unsafe_allow_html=True)
