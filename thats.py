@@ -17,6 +17,7 @@ except Exception as e:
     st.error(f"구글 시트 연동 실패: {e}")
     st.stop()
 
+# 💡 필수 열 자동 생성
 required_cols = [
     "ID", "날짜", "현장명", "사고장소", "사고경위", "작업환경", "사고원인", 
     "사고유형", "상해피해정도", "피재자", "주민번호_앞자리", "소속_직급", 
@@ -27,34 +28,26 @@ for col in required_cols:
     if col not in df.columns:
         df[col] = "대기"
 
-# 3. 🌟 [잘림 완전 방지] 스나이퍼 프린트 CSS 기법 적용
+# 3. 🌟 [잘림 방지 핵심] 프린트 전용 레이아웃 해제 CSS
 st.markdown("""
 <style>
 @media print {
-    /* 웹페이지의 모든 기본 요소를 투명하게 숨김 */
-    body * {
-        visibility: hidden !important;
-    }
+    /* 불필요한 버튼/메뉴 숨기기 */
+    header, footer, nav, [data-testid="stSidebar"], [data-testid="stHeader"], [data-testid="stToolbar"], .stButton { display: none !important; }
     
-    /* 오직 우리가 만든 보고서(printable-report)와 그 안의 내용만 보이게 설정 */
-    #printable-report, #printable-report * {
-        visibility: visible !important;
-    }
-    
-    /* 보고서를 화면 맨 위, 왼쪽 끝으로 강제 고정하여 잘림 현상 원천 차단 */
-    #printable-report {
-        position: absolute !important;
-        left: 0 !important;
-        top: 0 !important;
+    /* 🌟 스트림릿의 화면 제한(스크롤/숨김) 강제 해제 (잘림 현상 100% 방지) */
+    html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"], [data-testid="stMainBlockContainer"], .element-container, .stMarkdown, div[data-testid="stMarkdownContainer"] {
+        display: block !important;
         width: 100% !important;
         height: auto !important;
-    }
-    
-    html, body {
-        height: auto !important;
+        max-height: none !important;
         overflow: visible !important;
+        position: static !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
     
+    /* 1페이지와 2페이지 강제 분리 */
     .page-break { 
         page-break-before: always !important; 
         break-before: page !important; 
@@ -62,6 +55,7 @@ st.markdown("""
     @page { size: A4; margin: 10mm; }
 }
 
+/* 표 기본 디자인 */
 .gapji-table { width: 100% !important; border-collapse: collapse !important; font-family: 'Malgun Gothic', sans-serif; font-size: 13px; color: #000; border: 2px solid #000 !important; margin-bottom: 20px; }
 .gapji-table th, .gapji-table td { border: 1px solid #000 !important; padding: 6px !important; text-align: center; vertical-align: middle; }
 .gapji-header { background-color: #f0f0f0 !important; font-weight: bold; }
@@ -160,25 +154,21 @@ with menu[2]:
             return f'<tr><td class="gapji-header">{label}</td><td style="padding:0;">{inner}</td></tr>'
 
         if st.button("🖨️ 보고서 서식 완성하기 (클릭 후 Ctrl+P)", type="primary", use_container_width=True):
+            sign = lambda val: "<b>[확인]<br><span style='font-size:9px; color:gray;'>signed</span></b>" if val == "승인" else ""
             
-            # 🌟 [버그 해결] "승인" 또는 "확인" 이라는 글자가 있으면 도장을 찍도록 수정
-            def get_sign(val):
-                val_str = str(val).strip()
-                if val_str in ["승인", "확인"]:
-                    return "<b>[확인]<br><span style='font-size:9px; color:gray;'>signed</span></b>"
-                return ""
-            
+            # 1페이지 (갑지) - 누락되었던 목격자, 첨부서류 등 완전 복구
             html_1 = ''.join([
+                '<div class="print-area">',
                 '<table class="gapji-table">',
                 '<tr><td colspan="8" style="font-size: 26px; font-weight: bold; border:none; padding-bottom: 15px;">재해발생보고서</td></tr>',
                 '<tr><td colspan="2" style="font-size: 32px; font-weight: bold; border:none; text-align:left;">신건설(주)</td>',
                 '<td colspan="6" style="border:none; text-align:right;">',
                 '<table border="1" style="display:inline-block; border-collapse:collapse; font-size:11px; margin-right:5px; text-align:center;">',
                 '<tr><td rowspan="2" class="gapji-header" style="width:20px;">현<br>장</td><td class="gapji-header" style="width:55px;">안전담당</td><td class="gapji-header" style="width:55px;">공사/공무</td><td class="gapji-header" style="width:55px;">현장소장</td></tr>',
-                f'<tr><td style="height:42px; color:blue;">{get_sign(row.get("안전담당", ""))}</td><td style="color:blue;">{get_sign(row.get("공사/공무 담당", ""))}</td><td style="color:red;">{get_sign(row.get("현장소장", ""))}</td></tr></table>',
+                f'<tr><td style="height:42px; color:blue;">{sign(row.get("안전담당", ""))}</td><td style="color:blue;">{sign(row.get("공사/공무 담당", ""))}</td><td style="color:red;">{sign(row.get("현장소장", ""))}</td></tr></table>',
                 '<table border="1" style="display:inline-block; border-collapse:collapse; font-size:11px; text-align:center;">',
                 '<tr><td rowspan="2" class="gapji-header" style="width:20px;">본<br>사</td><td class="gapji-header" style="width:55px;">안전팀</td><td class="gapji-header" style="width:55px;">공사팀</td><td class="gapji-header" style="width:55px;">PM</td><td class="gapji-header" style="width:55px;">대표이사</td></tr>',
-                f'<tr><td style="height:42px; color:blue;">{get_sign(row.get("안전팀", ""))}</td><td style="color:blue;">{get_sign(row.get("공사팀", ""))}</td><td style="color:blue;">{get_sign(row.get("PM", ""))}</td><td style="color:red;">{get_sign(row.get("대표이사", ""))}</td></tr></table>',
+                f'<tr><td style="height:42px; color:blue;">{sign(row.get("안전팀", ""))}</td><td style="color:blue;">{sign(row.get("공사팀", ""))}</td><td style="color:blue;">{sign(row.get("PM", ""))}</td><td style="color:red;">{sign(row.get("대표이사", ""))}</td></tr></table>',
                 '</td></tr>',
                 f'<tr><td class="gapji-header" style="width:12%;">현장명</td><td colspan="3" style="width:38%; font-weight:bold;">{row.get("현장명", "")}</td><td class="gapji-header" style="width:12%;">사고장소</td><td colspan="3" style="width:38%;">{row.get("사고장소", "")}</td></tr>',
                 f'<tr><td class="gapji-header">사고일시</td><td colspan="2">{str(row.get("날짜", "")).split(" ")[0]}</td><td>{str(row.get("날짜", "")).split(" ")[1] if len(str(row.get("날짜", "")).split(" ")) > 1 else ""}</td><td class="gapji-header">작업환경</td><td colspan="3">{row.get("작업환경", "")}</td></tr>',
@@ -196,10 +186,12 @@ with menu[2]:
                 f'<tr><td class="gapji-header">관리적</td><td colspan="6" style="text-align:left; padding-left:5px;">{row.get("관리적대책", "")}</td></tr>',
                 f'<tr><td class="gapji-header">교육적</td><td colspan="6" style="text-align:left; padding-left:5px;">{row.get("교육적대책", "")}</td></tr>',
                 '<tr><td class="gapji-header">첨부서류</td><td colspan="7" style="text-align:left; padding-left:5px;">추후 진단서 첨부 예정</td></tr>',
-                '</table>'
+                '</table></div>'
             ])
 
+            # 2페이지 (상황도)
             html_2 = ''.join([
+                '<div class="print-area">',
                 '<table class="gapji-table" style="table-layout:fixed; width:100%;">',
                 '<colgroup><col style="width:15%;"><col style="width:85%;"></colgroup>',
                 '<tr><td colspan="2" style="font-size:26px; font-weight:bold; border:none; padding-bottom:20px;">사고현장 상황도</td></tr>',
@@ -208,16 +200,10 @@ with menu[2]:
                 f'<tr><td class="gapji-header">상황도 설명</td><td style="text-align:left; padding:10px; line-height:1.5;">{row.get("사고경위", "")}</td></tr>',
                 build_grid(process_images(files_situ), "사진 1<br>사고상황도"),
                 build_grid(process_images(files_injury), "사진 2<br>재해정도"),
-                '</table>'
+                '</table></div>'
             ])
 
-            # 🌟 [잘림 방지 핵심 로직] 하나의 거대한 #printable-report 컨테이너로 묶어서 출력
-            final_html = f"""
-            <div id="printable-report">
-                {html_1}
-                <div class="page-break"></div>
-                {html_2}
-            </div>
-            """
-            
-            st.markdown(final_html.replace('\n', ''), unsafe_allow_html=True)
+            # 🌟 [버그 원천 차단] 1페이지와 2페이지를 스트림릿에서 별개의 명령어로 출력하여 겹침 방지
+            st.markdown(html_1.replace('\n', ''), unsafe_allow_html=True)
+            st.markdown('<div class="page-break"></div>', unsafe_allow_html=True)
+            st.markdown(html_2.replace('\n', ''), unsafe_allow_html=True)
