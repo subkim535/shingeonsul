@@ -4,6 +4,7 @@ from streamlit_gsheets import GSheetsConnection
 import base64
 import datetime
 from datetime import date
+import textwrap
 
 # ==========================================
 # 1. 페이지 기본 설정
@@ -57,7 +58,6 @@ div[data-testid="stForm"] { padding: 1rem; border: 2px solid #ddd; border-radius
 </style>
 """, unsafe_allow_html=True)
 
-# 사진을 HTML 태그로 변환하는 공통 함수
 def process_images_for_html(uploaded_files, height="200px"):
     tags = []
     if uploaded_files:
@@ -269,7 +269,9 @@ if main_menu == "1. 위험성평가":
         else:
             photo_grid_html += '<div style="text-align:center; padding:20px; color:gray; border: 1px dashed #ccc; margin-top:10px; background-color:white;">첨부된 교육 전파 사진이 없습니다. 좌측에서 등록해 주세요.</div>'
 
-        st.markdown(ra_html_page1 + photo_grid_html, unsafe_allow_html=True)
+        # 마크다운 자동 파싱 오류 방지를 위한 dedent 처리
+        final_html = textwrap.dedent(ra_html_page1 + photo_grid_html)
+        st.markdown(final_html, unsafe_allow_html=True)
         
         if ra_submitted:
             ra_standalone_html = f"""
@@ -362,7 +364,8 @@ elif main_menu == "3. 사고보고서":
                 </table>
             </div>
             """
-            st.markdown(preview_html, unsafe_allow_html=True)
+            final_preview = textwrap.dedent(preview_html)
+            st.markdown(final_preview, unsafe_allow_html=True)
             st.info("최초 저장 시 1단계(보고서 제출)만 완료되며, 나머지 서류는 [후속 서류 업데이트] 메뉴에서 진행합니다.")
 
     # --- 3-2. 후속 서류 업데이트 ---
@@ -496,7 +499,8 @@ elif main_menu == "3. 사고보고서":
                     '</table>'
                 ])
 
-                st.markdown(html_1 + "<br><br>" + html_2, unsafe_allow_html=True)
+                final_print_html = textwrap.dedent(html_1 + "<br><br>" + html_2)
+                st.markdown(final_print_html, unsafe_allow_html=True)
 
                 standalone_html = f"""
                 <!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>보고서 인쇄</title>
