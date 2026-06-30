@@ -5,10 +5,14 @@ import base64
 import datetime
 from datetime import date
 
+# ==========================================
 # 1. 페이지 기본 설정
+# ==========================================
 st.set_page_config(page_title="신건설 통합 관리 시스템", layout="wide", initial_sidebar_state="expanded")
 
-# 2. 구글 스프레드시트 연동
+# ==========================================
+# 2. 구글 스프레드시트 실시간 연동 및 DB 초기화
+# ==========================================
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
     df = conn.read(ttl=5) 
@@ -17,7 +21,7 @@ except Exception as e:
     st.error(f"구글 시트 연동 실패: {e}")
     st.stop()
 
-# 필수 컬럼 검사 및 초기화
+# 필수 컬럼(사고보고서 및 서류 추적용) 검사 및 초기화
 required_cols = [
     "ID", "날짜", "현장명", "사고장소", "사고경위", "작업환경", "사고원인", 
     "사고유형", "상해피해정도", "피재자", "주민번호_앞자리", "소속_직급", 
@@ -35,7 +39,9 @@ for col in required_cols:
 
 approvers = ["안전담당", "공사/공무 담당", "현장소장", "안전팀", "공사팀", "PM", "대표이사"]
 
-# 3. 전체 UI 커스텀 CSS
+# ==========================================
+# 3. 전체 UI 커스텀 CSS & 공통 헬퍼 함수
+# ==========================================
 st.markdown("""
 <style>
 [data-testid="stSidebar"] { background-color: #1E4D6B; }
@@ -43,10 +49,37 @@ st.markdown("""
 .gapji-table { width: 100% !important; border-collapse: collapse !important; font-family: 'Malgun Gothic', sans-serif; font-size: 13px; color: #000; border: 2px solid #000 !important; margin-bottom: 20px; }
 .gapji-table th, .gapji-table td { border: 1px solid #000 !important; padding: 6px !important; text-align: center; vertical-align: middle; }
 .gapji-header { background-color: #f0f0f0 !important; font-weight: bold; }
+.grid-photo { width: 100%; height: 280px; object-fit: contain; background-color: #fafafa; display: block; margin: 0 auto; }
+.photo-blank { height: 280px; display: flex; justify-content: center; align-items: center; color: #999; font-size: 13px; background-color: #fafafa; }
 div[data-testid="stForm"] { padding: 1rem; border: 2px solid #ddd; border-radius: 8px;}
-.stTextInput, .stDateInput, .stTimeInput, .stSelectbox { margin-bottom: -10px; }
+.stTextInput, .stDateInput, .stTimeInput, .stSelectbox, .stTextArea { margin-bottom: -10px; }
+.page-break { page-break-before: always; }
 </style>
 """, unsafe_allow_html=True)
+
+# 사진을 HTML 태그로 변환하는 공통 함수
+def process_images_for_html(uploaded_files, height="200px"):
+    tags = []
+    for f in uploaded_files:
+        encoded = base64.b64encode(f.getvalue()).decode()
+        tags.append(f'<img src="data:image/jpeg;base64,{encoded}" style="width:100%; height:{height}; object-fit:contain; background-color:#fafafa;">')
+    return tags
+
+def build_grid(tags, label):
+    clean_label = label.replace('<br>', ' ')
+    if not tags: return f'<tr><td class="gapji-header">{label}</td><td style="padding:6px;"><div class="photo-blank">{clean_label} 미등록</div></td></tr>'
+    inner = '<table width="100%" border="0" cellpadding="0" cellspacing="0" style="table-layout:fixed; height:100%;">'
+    for i in range((len(tags) + 1) // 2):
+        c1 = tags[i*2]
+        c2 = tags[i*2+1] if (i*2+1) < len(tags) else '<div class="photo-blank">대기</div>'
+        bb = 'border-bottom: 1px solid #000;' if i < ((len(tags)+1)//2 - 1) else ''
+        inner += f'<tr><td style="width:50%; border-right:1px solid #000; {bb} padding:6px;">{c1}</td><td style="width:50%; {bb} padding:6px;">{c2}</td></tr>'
+    inner += '</table>'
+    return f'<tr><td class="gapji-header">{label}</td><td style="padding:0;">{inner}</td></tr>'
+
+def get_sign(val):
+    if str(val).strip() in ["승인", "확인"]: return "<b>[확인]<br><span style='font-size:9px; color:gray;'>signed</span></b>"
+    return ""
 
 # ==========================================
 # 4. 왼쪽 사이드바 (Navigation Menu)
@@ -55,7 +88,7 @@ with st.sidebar:
     st.title("🏗️ 신건설 통합관리 시스템")
     st.markdown("---")
     
-    main_menu = st.radio("메뉴 선택", ["1. 위험성평가", "2. TBM", "3. 사고보고서", "4. 안전보건교육", "5. 작업표준화"], index=2)
+    main_menu = st.radio("메뉴 선택", ["1. 위험성평가", "2. TBM", "3. 사고보고서", "4. 안전보건교육", "5. 작업표준화"], index=0)
     
     if main_menu == "3. 사고보고서":
         st.markdown("---")
@@ -67,11 +100,144 @@ with st.sidebar:
 # ==========================================
 # 5. 중앙 메인 화면 로직
 # ==========================================
-if main_menu == "3. 사고보고서":
+
+# ---------------------------------------------------------
+# [모듈 1] 위험성평가 
+# ---------------------------------------------------------
+if main_menu == "1. 위험성평가":
+    st.header("📝 위험성평가 회의록 및 사진 등록")
     
-    # ----------------------------------------
-    # [메뉴 1] 최초 사고보고서 작성 (1단계 제출)
-    # ----------------------------------------
+    col_input, col_preview = st.columns([5, 5])
+    
+    with col_input:
+        st.subheader("🔸 회의 내용 및 사진 입력창")
+        
+        with st.form("risk_assessment_form"):
+            st.markdown("**1. 회의 개요**")
+            c1, c2 = st.columns(2)
+            ra_site = c1.text_input("현장명", value="아크로 드 서초")
+            ra_place = c2.text_input("장소", value="회의실")
+            
+            c3, c4 = st.columns(2)
+            ra_date_start = c3.date_input("작업기간(시작)", value=date(2026, 6, 29))
+            ra_date_end = c4.date_input("작업기간(종료)", value=date(2026, 7, 11))
+            
+            c5, c6 = st.columns(2)
+            ra_meeting_date = c5.date_input("회의일", value=date(2026, 6, 24))
+            ra_attendees_count = c6.text_input("참석인원", value="16명")
+            
+            ra_writer = st.text_input("작성자", value="전성배")
+            ra_attendees_list = st.text_area("참석자 명단", value="소장 장도호, 철근 오종훈, 타설 김선열, 품질 김정곤, 공사 조상호, 형틀 김을탁, 형틀 강태웅, 형틀 박나경, 형틀 김범수, 알폼 김강호, 공무 한승훈, 공무 김현근, 안전 박정원, 안전 전성배, 해체 황호근", height=70)
+            
+            st.markdown("---")
+            st.markdown("**2. 주요위험 관리 POINT**")
+            ra_agenda = st.text_input("주요안건", value="사전 유해.위험 점검, 논의 / 고위험 작업, 상습 부적합 사항")
+            
+            ra_risk_1 = st.text_area("항목 1 (공종 / 위험요인 및 대책)", value="[시스템] 비계에 벽이음 가새 미설치 작업 중 붕괴 위험\nㄴ 설치 작업시 벽이음 선행 후 작업 실시 및 규정에 맞는 간격으로 설치 할 것", height=70)
+            ra_risk_2 = st.text_area("항목 2 (공종 / 위험요인 및 대책)", value="[알폼] 말비계상부 작업시 끝단부 작업 및 불안전한 행동으로 인한 추락 위험\nㄴ 낙상경보기 설치 및 승강 발판 미끄럼 방지 조치", height=70)
+            
+            st.markdown("---")
+            st.markdown("**3. 의견 청취**")
+            ra_worker_opinion = st.text_area("근로자 의견청취 / 등급 조정 안건", value="[형틀 강태웅] 현장 내 소변기 뿐만 아니라 간이 화장실이 더 늘었으면 좋겠음.\nㄴ LDSPM 회의 소장님 참가 시 DL측에 전달하여 답변 대기중", height=70)
+            ra_manager_opinion = st.text_input("관리감독자 의견", value="공정 진행에 따라 지하층 작업 전 조도 확보 후 작업 실시 할 것")
+            ra_safety_opinion = st.text_input("안전관리자 의견", value="휴게시간에 휴게소 사용 할 수 있게 적극 권유 할 것")
+            ra_director_opinion = st.text_input("안전보건관리책임자 의견", value="날씨가 더워짐에 따라 근로자 건강관리에 유념할 것")
+            
+            st.markdown("---")
+            st.markdown("**4. 사진대지 첨부**")
+            ra_photos_meeting = st.file_uploader("회의 및 교육 사진 업로드 (여러 장 가능)", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
+            
+            ra_submitted = st.form_submit_button("💾 회의록 양식 생성", type="primary", use_container_width=True)
+
+    with col_preview:
+        st.subheader("🔸 위험성평가 회의록 (미리보기)")
+        
+        def format_text(text):
+            return text.replace('\n', '<br>')
+            
+        ra_html_page1 = f"""
+        <div style="background-color: white; padding: 15px; border: 2px solid #4CAF50; border-radius: 8px;">
+            <table class="gapji-table" style="background-color: white;">
+                <tr><td colspan="5" style="font-size: 24px; font-weight: bold; background-color:#fff;">위험성평가 회의록</td></tr>
+                <tr>
+                    <td class="gapji-header" style="width:15%;">현장명</td><td style="width:35%;">{ra_site}</td>
+                    <td class="gapji-header" style="width:15%;">작업기간</td><td colspan="2" style="width:35%;">{ra_date_start.strftime('%y.%m.%d')} ~ {ra_date_end.strftime('%y.%m.%d')}</td>
+                </tr>
+                <tr>
+                    <td class="gapji-header">장 소</td><td>{ra_place}</td>
+                    <td class="gapji-header">회의일</td><td colspan="2">{ra_meeting_date.strftime('%y.%m.%d')}</td>
+                </tr>
+                <tr>
+                    <td class="gapji-header">참석인원</td><td>{ra_attendees_count}</td>
+                    <td class="gapji-header">작성자</td><td colspan="2">{ra_writer}</td>
+                </tr>
+                <tr>
+                    <td class="gapji-header">참석자명단</td><td colspan="4" style="text-align:left; padding:10px;">{ra_attendees_list}</td>
+                </tr>
+                <tr>
+                    <td class="gapji-header" rowspan="3">주요위험<br>관리POINT</td>
+                    <td colspan="4" style="text-align:left; font-weight:bold; background-color:#f9f9f9;">[주요안건] {ra_agenda}</td>
+                </tr>
+                <tr><td colspan="4" style="text-align:left; padding:10px;">{format_text(ra_risk_1)}</td></tr>
+                <tr><td colspan="4" style="text-align:left; padding:10px;">{format_text(ra_risk_2)}</td></tr>
+                <tr>
+                    <td class="gapji-header">근로자<br>의견청취</td>
+                    <td colspan="4" style="text-align:left; padding:10px;">{format_text(ra_worker_opinion)}</td>
+                </tr>
+                <tr>
+                    <td class="gapji-header">관리감독자</td><td colspan="4" style="text-align:left; padding:10px;">{ra_manager_opinion}</td>
+                </tr>
+                <tr>
+                    <td class="gapji-header">안전관리자</td><td colspan="4" style="text-align:left; padding:10px;">{ra_safety_opinion}</td>
+                </tr>
+                <tr>
+                    <td class="gapji-header">책임자총평</td><td colspan="4" style="text-align:left; padding:10px;">{ra_director_opinion}</td>
+                </tr>
+            </table>
+        </div>
+        """
+        
+        photo_tags = process_images_for_html(ra_photos_meeting if 'ra_photos_meeting' in locals() and ra_photos_meeting else [])
+        
+        photo_grid_html = ""
+        if photo_tags:
+            photo_grid_html += '<table class="gapji-table" style="background-color: white; margin-top:15px;"><tr><td colspan="2" class="gapji-header" style="font-size: 18px;">【사진대지 - 위험성평가 전파교육】</td></tr>'
+            for i in range(0, len(photo_tags), 2):
+                img1 = photo_tags[i]
+                img2 = photo_tags[i+1] if i+1 < len(photo_tags) else ""
+                photo_grid_html += f'<tr><td style="width:50%; padding:10px;">{img1}</td><td style="width:50%; padding:10px;">{img2}</td></tr>'
+            photo_grid_html += '</table>'
+        else:
+            photo_grid_html += '<div style="text-align:center; padding:20px; color:gray; border: 1px dashed #ccc; margin-top:10px;">첨부된 사진이 없습니다. 좌측에서 사진을 업로드해주세요.</div>'
+
+        st.markdown(ra_html_page1 + photo_grid_html, unsafe_allow_html=True)
+        
+        if ra_submitted:
+            ra_standalone_html = f"""
+            <!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>위험성평가 회의록</title>
+            <style>
+                @page {{ size: A4; margin: 10mm 15mm; }} 
+                body {{ background: #fff; font-family: 'Malgun Gothic', sans-serif; font-size:13px; color:#000; margin:0; padding:0; }} 
+                .gapji-table {{ width: 100%; border-collapse: collapse; border: 2px solid #000; margin-bottom: 20px; }} 
+                .gapji-table th, .gapji-table td {{ border: 1px solid #000; padding: 7px; text-align: center; vertical-align: middle; }} 
+                .gapji-header {{ background-color: #f0f0f0; font-weight: bold; }}
+                .page-break {{ page-break-before: always; }}
+            </style>
+            </head><body onload="window.print()">
+            {ra_html_page1.replace('border: 2px solid #4CAF50; border-radius: 8px;', '').replace('background-color: white; padding: 15px;', '')}
+            <div class="page-break"></div>
+            {photo_grid_html}
+            </body></html>
+            """
+            ra_b64 = base64.b64encode(ra_standalone_html.encode('utf-8')).decode('utf-8')
+            st.markdown(f'<div style="text-align:center; margin-top:20px;"><a href="data:text/html;base64,{ra_b64}" download="위험성평가_회의록_{ra_meeting_date.strftime("%y%m%d")}.html" style="padding:15px 30px; background-color:#1E4D6B; color:white; text-decoration:none; border-radius:8px; font-weight:bold; font-size:16px;">🖨️ A4 인쇄용 양식 다운로드</a></div>', unsafe_allow_html=True)
+
+# ---------------------------------------------------------
+# [모듈 3] 사고보고서 - 서브메뉴 분기
+# ---------------------------------------------------------
+elif main_menu == "3. 사고보고서":
+    
+    # --- 3-1. 최초 사고보고서 작성 ---
     if sub_menu == "📝 최초 사고보고서 작성":
         st.header("📝 최초 사고보고서 등록")
         col_input, col_preview = st.columns([5, 5])
@@ -140,18 +306,14 @@ if main_menu == "3. 사고보고서":
             st.markdown(preview_html, unsafe_allow_html=True)
             st.info("최초 저장 시 1단계(보고서 제출)만 완료되며, 나머지 서류는 [후속 서류 업데이트] 메뉴에서 진행합니다.")
 
-    # ----------------------------------------
-    # [메뉴 2] 후속 서류 업데이트 (2~4단계 사진/텍스트 제출)
-    # ----------------------------------------
+    # --- 3-2. 후속 서류 업데이트 ---
     elif sub_menu == "📎 후속 서류 업데이트":
         st.header("📎 후속 서류 및 사진 제출")
         if df.empty:
             st.warning("등록된 사고 기록이 없습니다.")
         else:
-            # 상태 변경 로직 함수 (자동 종결 체크 포함)
             def update_status(idx, col_name, val):
                 df.loc[idx, col_name] = val
-                # 종결 조건 체크
                 c1 = df.loc[idx, "사고보고서_제출"] == "O"
                 c2 = df.loc[idx, "재발방지대책_제출"] == "O"
                 c3 = df.loc[idx, "산재표_제출"] == "O"
@@ -160,21 +322,18 @@ if main_menu == "3. 사고보고서":
                 conn.update(data=df)
                 st.toast(f"✅ {col_name} 업데이트 완료!")
 
-            # 업데이트할 건 선택
             select_idx = st.selectbox("업데이트할 사고 건을 선택하세요", df.index, format_func=lambda x: f"[{df.loc[x, 'ID']}] {df.loc[x, '현장명']} - {df.loc[x, '피재자']} ({df.loc[x, '진행상태']})")
             row = df.loc[select_idx]
 
             st.markdown("---")
             st.subheader(f"📊 현재 제출 현황 (상태: **{row['진행상태']}**)")
             
-            # 현황표 표시
             status_df = pd.DataFrame([{
                 "사고보고서": row['사고보고서_제출'], "재발방지대책": row['재발방지대책_제출'], 
                 "산재표 제출": row['산재표_제출'], "합의서 작성": row['합의서_작성']
             }])
             st.table(status_df)
 
-            # 3개의 서류별 개별 업로드 탭 구성
             tab1, tab2, tab3 = st.tabs(["🛡️ 재발방지대책", "🏥 산재표 제출", "🤝 합의서 작성"])
             
             with tab1:
@@ -208,18 +367,14 @@ if main_menu == "3. 사고보고서":
                     update_status(select_idx, "합의서_작성", "N/A")
                     st.rerun()
 
-    # ----------------------------------------
-    # [메뉴 3] 통합 DB 뷰어 (웹에서 구글시트 바로보기)
-    # ----------------------------------------
+    # --- 3-3. 통합 DB 뷰어 ---
     elif sub_menu == "📊 통합 DB (구글시트 뷰어)":
         st.header("📊 전사 사고 대장 통합 뷰어")
         st.caption("구글 스프레드시트에 접속할 필요 없이, 웹에서 전체 데이터를 확인하고 직접 수정(결재)할 수 있습니다.")
         
-        # 전체 데이터프레임을 화면에 넓게 띄워 구글시트 환경을 대체
         edited_df = st.data_editor(df, num_rows="dynamic", use_container_width=True, height=500, hide_index=True)
         
         if st.button("💾 데이터베이스 직접 저장 (결재 정보 업데이트)", type="primary"):
-            # 수동으로 상태를 바꿨을 수도 있으므로 종결 로직 한 번 더 검사
             for idx in edited_df.index:
                 d1, d2, d3, d4 = [str(edited_df.loc[idx, c]).strip().upper() for c in ["사고보고서_제출", "재발방지대책_제출", "산재표_제출", "합의서_작성"]]
                 edited_df.loc[idx, "진행상태"] = "종결" if (d1=="O" and d2=="O" and d3=="O" and d4 in ["O", "N/A"]) else "진행중"
@@ -228,9 +383,7 @@ if main_menu == "3. 사고보고서":
             st.success("✅ 구글 스프레드시트에 동기화 완료!")
             st.rerun()
 
-    # ----------------------------------------
-    # [메뉴 4] 상황도 및 최종 출력 (서류 현황 포함)
-    # ----------------------------------------
+    # --- 3-4. 최종 보고서 출력 ---
     elif sub_menu == "🖨️ 최종 보고서 출력":
         st.header("🖨️ 상황도 작성 및 보고서 최종 인쇄")
         if df.empty:
@@ -244,29 +397,7 @@ if main_menu == "3. 사고보고서":
             files_situ = up_col1.file_uploader("🖼️ 상황도 사진", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
             files_injury = up_col2.file_uploader("🩹 재해정도 사진", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 
-            def process_images(uploaded_files):
-                tags = []
-                for f in uploaded_files:
-                    encoded = base64.b64encode(f.getvalue()).decode()
-                    tags.append(f'<img src="data:image/png;base64,{encoded}" class="grid-photo">')
-                return tags
-
-            def build_grid(tags, label):
-                if not tags: return f'<tr><td class="gapji-header">{label}</td><td style="padding:6px;"><div class="photo-blank">사진 미등록</div></td></tr>'
-                inner = '<table width="100%" border="0" cellpadding="0" cellspacing="0" style="table-layout:fixed; height:100%;">'
-                for i in range((len(tags) + 1) // 2):
-                    c1 = tags[i*2]
-                    c2 = tags[i*2+1] if (i*2+1) < len(tags) else '<div class="photo-blank">대기</div>'
-                    bb = 'border-bottom: 1px solid #000;' if i < ((len(tags)+1)//2 - 1) else ''
-                    inner += f'<tr><td style="width:50%; border-right:1px solid #000; {bb} padding:6px;">{c1}</td><td style="width:50%; {bb} padding:6px;">{c2}</td></tr>'
-                inner += '</table>'
-                return f'<tr><td class="gapji-header">{label}</td><td style="padding:0;">{inner}</td></tr>'
-
             if st.button("🖨️ A4 보고서 생성 및 인쇄 다운로드", type="primary", use_container_width=True):
-                def get_sign(val):
-                    if str(val).strip() in ["승인", "확인"]: return "<b>[확인]<br><span style='font-size:9px; color:gray;'>signed</span></b>"
-                    return ""
-                
                 s_color = "blue" if row.get('진행상태', '') == "종결" else "red"
 
                 html_1 = ''.join([
@@ -302,8 +433,8 @@ if main_menu == "3. 사고보고서":
                 html_2 = ''.join([
                     '<table class="gapji-table" style="table-layout:fixed; width:100%;">',
                     '<tr><td colspan="2" style="font-size:26px; font-weight:bold; border:none; padding-bottom:20px;">사고현장 상황도</td></tr>',
-                    build_grid(process_images(files_situ), "사진 1<br>사고상황도"),
-                    build_grid(process_images(files_injury), "사진 2<br>재해정도"),
+                    build_grid(process_images_for_html(files_situ, "250px"), "사진 1<br>사고상황도"),
+                    build_grid(process_images_for_html(files_injury, "250px"), "사진 2<br>재해정도"),
                     '</table>'
                 ])
 
