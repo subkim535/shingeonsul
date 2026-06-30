@@ -29,7 +29,7 @@ except Exception as e:
 
 required_cols = [
     "ID", "날짜", "현장명", "사고장소", "사고경위", "작업환경", "사고원인", 
-    "사고유형", "상해피해정도", "피재자", "생년월일", "소속_직급", 
+    "사고유 유형", "상해피해정도", "피재자", "생년월일", "소속_직급", 
     "직종", "채용일자", "국적_체류코드", "기술적대책", "관리적대책", "교육적대책",
     "안전담당", "공사/공무 담당", "현장소장", "안전팀", "공사팀", "PM", "대표이사",
     "사고보고서_제출", "재발방지대책_제출", "산재표_제출", "합의서_작성", "진행상태"
@@ -87,13 +87,13 @@ def get_sign(val):
     return ""
 
 # ==========================================
-# 4. 왼쪽 사이드바 (영문 ID 전용 로그인 시스템 연동)
+# 4. 왼쪽 사이드바 (영문 ID 로그인 제어 허브)
 # ==========================================
 with st.sidebar:
     st.title("🏗️ 신건설 통합관리 시스템")
     st.markdown("---")
     
-    # [요구사항 반영] 한글 ID 제거, 순수 영문 ID 식별 제어 엔진
+    # [요구사항 반영] 신규 직책 영문 ID 조건문 전면 이식
     st.subheader("🔐 시스템 보안 로그인")
     user_id_input = st.text_input("접속 ID 입력 (공백 시 게스트)", value="", type="password").strip().lower()
     
@@ -109,6 +109,18 @@ with st.sidebar:
     elif user_id_input == "director":
         user_role = "현장소장"
         st.success("🟢 권한: 현장소장(장도호)")
+    elif user_id_input == "construction":
+        user_role = "공사/공무 담당"
+        st.success("🟢 권한: 공사/공무 담당")
+    elif user_id_input == "const_team":
+        user_role = "본사 공사팀"
+        st.success("🟢 권한: 본사 공사팀")
+    elif user_id_input == "pm":
+        user_role = "PM"
+        st.success("🟢 권한: 프로젝트 매니저(PM)")
+    elif user_id_input == "ceo":
+        user_role = "대표이사"
+        st.success("👑 권한: 대표이사")
     elif user_id_input == "admin":
         user_role = "본사 관리자"
         st.success("👑 권한: 본사 총괄 관리자")
@@ -128,37 +140,31 @@ with st.sidebar:
         )
 
 # ==========================================
-# 5. 중앙 메인 화면 제어 엔진
+# 5. 중앙 메인 화면 로직
 # ==========================================
 
 # ---------------------------------------------------------
-# [모듈 1] 위험성평가 (영문 로그인 기반 서명 연동)
+# [모듈 1] 위험성평가 (서명 연동 엔진 가동)
 # ---------------------------------------------------------
 if main_menu == "1. 위험성평가":
     st.header("📝 위험성평가 회의록 및 사진 등록")
-    
     col_input, col_preview = st.columns([4, 6])
     
     with col_input:
         st.subheader("🔸 회의 내용 및 사진 입력창")
-        
         with st.form("risk_assessment_form"):
             st.markdown("**1. 회의 개요**")
             c1, c2 = st.columns(2)
             ra_site = c1.text_input("현장명", value="아크로 드 서초")
             ra_place = c2.text_input("장소", value="회의실")
-            
             c3, c4 = st.columns(2)
             ra_date_start = c3.date_input("작업기간(시작)", value=date(2026, 6, 29))
             ra_date_end = c4.date_input("작업기간(종료)", value=date(2026, 7, 11))
-            
             c5, c6 = st.columns(2)
             ra_meeting_date = c5.date_input("회의일", value=date(2026, 6, 24))
             ra_attendees_count = c6.text_input("참석인원", value="16명")
-            
             ra_writer = st.text_input("작성자 (직접입력)", value="전성배")
             
-            # [요구사항 반영] 영문 로그인 계정 기반 연동 결재 시스템
             st.markdown("**🖋️ 전자결재 서명 란**")
             if user_role == "관리감독자":
                 if st.form_submit_button("▶️ 관리감독자(황승훈) 결재 서명 승인"):
@@ -170,7 +176,7 @@ if main_menu == "1. 위험성평가":
                 if st.form_submit_button("▶️ 현장소장(장도호) 최종 결재 승인"):
                     st.session_state["ra_signs"]["현장소장"] = "장도호"
             elif user_role == "게스트":
-                st.error("🔒 게스트 권한 상태입니다. 서명을 입력하려면 영문 전용 ID로 로그인하십시오.")
+                st.error("🔒 게스트 권한 상태입니다. 서명을 입력하려면 전용 영문 ID로 로그인하십시오.")
             else:
                 st.info(f"ℹ️ 현재 권한({user_role})은 서명 대상 직책이 아닙니다.")
 
@@ -183,7 +189,6 @@ if main_menu == "1. 위험성평가":
             st.markdown("---")
             st.markdown("**2. 주요위험 관리 POINT**")
             ra_agenda = st.text_input("주요안건", value="사전 유해.위험 점검, 논의 / 고위험 작업, 상습 부적합 사항")
-            
             ra_risk_1 = st.text_area("1. 시스템", value="비계에 벽이음 가새 미설치 작업 중 붕괴 위험\nㄴ 설치 작업시 벽이음 선행 후 작업 실시 및 규정에 맞는 간격으로 설치 할 것", height=65)
             ra_risk_2 = st.text_area("2. 알폼", value="말비계상부 작업시 끝단부 작업 및 불안전한 행동으로 인한 추락 위험\nㄴ 낙상경보기 설치 및 승강 발판 미끄럼 방지 조치", height=65)
             ra_risk_3 = st.text_area("3. 철근", value="계단 철근 배근 후 이동 경사발판 미설치상태 철근을 밟고 이동 중 미끄러져 넘어짐\nㄴ 계단 경사철근 배근 직후 이동용 경사발판 설치 후 이동", height=65)
@@ -195,7 +200,6 @@ if main_menu == "1. 위험성평가":
             st.markdown("**3. 의견 청취 및 종합 의견**")
             default_opinions = "[형틀 강태웅] 현장 내 소변기 뿐만 아니라 간이 화장실이 더 늘었으면 좋겠음.\nㄴ LDSPM 회의 소장님 참가 시 DL측에 전달하여 답변을 기다리고 있으며 해당 근로자에겐 DL측 답변이 오면 전달해주기로함\n\n[보통인부 이길수] 대기소에서 사무실까지오는 발판 비계가 꺼진부분이 너무 많습니다. 교체해주세요\nㄴ DL 시설팀에 전달하여 06.29 교체예정이라고 답변 받음"
             ra_worker_opinion = st.text_area("근로자 의견청취", value=default_opinions, height=120)
-            
             ra_manager_opinion = st.text_input("관리감독자 의견", value="공정 진행에 따라 지하층 작업이 많아지고있는데 지하층 작업 전 조도 확보 후 작업 실시 할 것")
             ra_safety_opinion = st.text_input("안전관리자 의견", value="현장 내 휴게소 설치가 완료되었음에도 불구하고 휴게시간에 현장에 있는 인원이 많이 보이는데 각 팀 팀장님들은 휴게소 사용 할 수 있게 적극적으로 권유 할 것")
             ra_director_opinion = st.text_input("안전보건관리책임자 의견", value="날씨가 더워짐에 따라 근로자 개인 건강관리에 유념하며 몸에 이상이 있을시 바로 조치될 수 있도록 할것")
@@ -204,7 +208,6 @@ if main_menu == "1. 위험성평가":
             st.markdown("**4. 사진대지 첨부**")
             ra_photos_meeting = st.file_uploader("회의 및 교육 사진 업로드", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
             
-            # [요구사항 반영] 게스트 입력 전면 봉쇄
             if user_role == "게스트":
                 st.form_submit_button("🔒 게스트 작성 권한 차단됨", disabled=True, use_container_width=True)
                 ra_submitted = False
@@ -384,11 +387,10 @@ elif main_menu == "3. 사고보고서":
                 formatted_date_time = f"{accident_date.strftime('%y.%m.%d')} {accident_time.strftime('%H:%M')}분경"
                 auto_detail = f"{formatted_date_time} / {accident_place}에서 / {p_team} {p_gongjong} {p_name_ko}({p_birth_code})이(가) {work_detail} 중, {accident_cause} 발생하여 [{accident_type}] 사고가 발생함."
                 
-                # [요구사항 반영] 게스트 및 비인가 제어
                 if user_role == "게스트":
                     st.form_submit_button("🔒 게스트 작성 권한 차단됨", disabled=True, use_container_width=True)
-                elif user_role != "현장 작성자" and user_role != "본사 관리자":
-                    st.form_submit_button(f"🔒 {user_role} 권한 작성 불가 (writer 계정 전용)", disabled=True, use_container_width=True)
+                elif user_role not in ["현장 작성자", "공사/공무 담당", "본사 관리자"]:
+                    st.form_submit_button(f"🔒 {user_role} 권한 작성 불가 (writer 또는 construction 계정 전용)", disabled=True, use_container_width=True)
                 else:
                     submitted = st.form_submit_button("💾 1단계: 사고보고서 등록", type="primary", use_container_width=True)
                     if submitted:
@@ -430,7 +432,7 @@ elif main_menu == "3. 사고보고서":
     elif sub_menu == "📎 후속 서류 업데이트":
         st.header("📎 후속 서류 및 사진 제출")
         if df.empty:
-            st.warning("등록된 사고 관리 대장이 존재하지 않습니다.")
+            st.warning("등록된 사고 기록이 없습니다.")
         else:
             def update_status(idx, col_name, val):
                 df.loc[idx, col_name] = val
@@ -440,7 +442,7 @@ elif main_menu == "3. 사고보고서":
                 c4 = df.loc[idx, "합의서_작성"] in ["O", "N/A"]
                 df.loc[idx, "진행상태"] = "종결" if (c1 and c2 and c3 and c4) else "진행중"
                 conn.update(data=df)
-                st.toast(f"✅ 대장 현황 내 [{col_name}] 상태 동기화 완료!")
+                st.toast(f"✅ {col_name} 업데이트 완료!")
 
             select_idx = st.selectbox("업데이트할 사고 건을 선택하세요", df.index, format_func=lambda x: f"[{df.loc[x, 'ID']}] {df.loc[x, '현장명']} - {df.loc[x, '피재자']} ({df.loc[x, '진행상태']})")
             row = df.loc[select_idx]
@@ -495,7 +497,6 @@ elif main_menu == "3. 사고보고서":
                         update_status(select_idx, "합의서_작성", "O")
                         st.rerun()
                     if c_btn2.button("N/A 면제 처리 (본사 승인 권한)", type="secondary", use_container_width=True):
-                        # [요구사항 반영] N/A 처리는 오직 마스터 권한인 '본사 관리자'만 집행 가능
                         if user_role == "본사 관리자":
                             update_status(select_idx, "합의서_작성", "N/A")
                             st.rerun()
@@ -506,7 +507,6 @@ elif main_menu == "3. 사고보고서":
         st.header("📊 전사 사고 대장 통합 뷰어")
         st.caption("구글 스프레드시트에 접속할 필요 없이, 웹에서 전체 데이터를 확인하고 직접 수정(결재)할 수 있습니다.")
         
-        # [요구사항 반영] 게스트일 경우 에디터 수정 전면 차단(disabled=True)
         is_disabled = True if user_role == "게스트" else False
         edited_df = st.data_editor(df, num_rows="dynamic", use_container_width=True, height=500, hide_index=True, disabled=is_disabled)
         
