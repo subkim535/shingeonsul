@@ -66,7 +66,6 @@ def process_images_for_html(uploaded_files, height="200px"):
             tags.append(f'<img src="data:image/jpeg;base64,{encoded}" style="width:100%; height:{height}; object-fit:contain; background-color:#fafafa;">')
     return tags
 
-# [핵심] 인쇄 시 표의 행(tr)이 절반으로 갈라지는 것을 막기 위해 강제 속성 추가
 def build_grid(tags, label):
     clean_label = label.replace('<br>', ' ')
     if not tags: return f'<tr style="page-break-inside: avoid; break-inside: avoid;"><td class="gapji-header" style="width:20%;">{label}</td><td style="padding:6px; width:80%;"><div class="photo-blank">{clean_label} 미등록</div></td></tr>'
@@ -104,7 +103,7 @@ with st.sidebar:
 # ==========================================
 
 # ---------------------------------------------------------
-# [모듈 1] 위험성평가 
+# [모듈 1] 위험성평가 (기획서 반영 업그레이드 장착)
 # ---------------------------------------------------------
 if main_menu == "1. 위험성평가":
     st.header("📝 위험성평가 회의록 및 사진 등록")
@@ -204,9 +203,9 @@ if main_menu == "1. 위험성평가":
                             </tr>
                             <tr>
                                 <td style="height:38px; font-size:12px; font-weight:bold; vertical-align:middle;">{ra_writer}</td>
-                                <td style="color:#22c55e; font-size:10px; font-weight:bold; vertical-align:middle;">{sign_html_manager}</td>
-                                <td style="color:#22c55e; font-size:10px; font-weight:bold; vertical-align:middle;">{sign_html_safety}</td>
-                                <td style="color:#22c55e; font-size:10px; font-weight:bold; vertical-align:middle;">{sign_html_director}</td>
+                                <td style="color:#1E4D6B; font-size:10px; font-weight:bold; vertical-align:middle;">{sign_html_manager}</td>
+                                <td style="color:#1E4D6B; font-size:10px; font-weight:bold; vertical-align:middle;">{sign_html_safety}</td>
+                                <td style="color:#b91c1c; font-size:10px; font-weight:bold; vertical-align:middle;">{sign_html_director}</td>
                             </tr>
                         </table>
                     </td>
@@ -287,7 +286,7 @@ if main_menu == "1. 위험성평가":
             ra_standalone_html = f"""
             <!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>위험성평가 회의록</title>
             <style>
-                @page {{ size: A4; margin: 12mm 15mm; }} 
+                @page {{ size: A4 portrait; margin: 12mm 15mm; }} 
                 body {{ background: #fff; font-family: 'Malgun Gothic', sans-serif; font-size:12px; color:#000; margin:0; padding:0; }} 
                 .gapji-table {{ width: 100%; border-collapse: collapse; border: 2px solid #000; margin-bottom: 15px; table-layout: fixed; word-break: break-word; }} 
                 .gapji-table th, .gapji-table td {{ border: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle; }} 
@@ -297,7 +296,7 @@ if main_menu == "1. 위험성평가":
                     table {{ page-break-inside: auto !important; break-inside: auto !important; }}
                 }}
             </style>
-            </head><body onload="window.print()">
+            </head><body onload=\"window.print()\">
             {ra_html_page1}
             <br>
             {photo_grid_html}
@@ -307,7 +306,7 @@ if main_menu == "1. 위험성평가":
             st.markdown(f'<div style="text-align:center; margin-top:20px;"><a href="data:text/html;base64,{ra_b64}" download="위험성평가_회의록_{ra_meeting_date.strftime("%Y%m%d")}.html" style="padding:12px 25px; background-color:#1E4D6B; color:white; text-decoration:none; border-radius:6px; font-weight:bold; font-size:14px;">🖨️ 현장제출용 A4 양식 출력하기</a></div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# [모듈 3] 사고보고서
+# [모듈 3] 사고보고서 (기존 원본 로직 100% 동일 가동)
 # ---------------------------------------------------------
 elif main_menu == "3. 사고보고서":
     
@@ -414,7 +413,7 @@ elif main_menu == "3. 사고보고서":
                 tech = st.text_input("기술적 대책", value=row.get('기술적대책', ''))
                 admin = st.text_input("관리적 대책", value=row.get('관리적대책', ''))
                 edu = st.text_input("교육적 대책", value=row.get('교육적대책', ''))
-                file1 = st.file_uploader("재발방지대책 관련 사진 업로드", type=["jpg", "png", "pdf"])
+                file1 = st.file_uploader("재발방지대책 관련 사진 업로드", type=["jpg", "png", "jpeg"])
                 if st.button("재발방지대책 제출 (완료 처리)"):
                     df.loc[select_idx, "기술적대책"] = tech
                     df.loc[select_idx, "관리적대책"] = admin
@@ -511,7 +510,6 @@ elif main_menu == "3. 사고보고서":
                 final_print_html = re.sub(r'>\s+<', '><', html_1 + "<br><br>" + html_2)
                 st.markdown(final_print_html, unsafe_allow_html=True)
 
-                # [핵심] 미디어 프린트 속성으로 브라우저가 행(tr)을 갈라치기 하는 것을 강제로 금지
                 standalone_html = f"""
                 <!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>보고서 인쇄</title>
                 <style>
