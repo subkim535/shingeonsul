@@ -5,6 +5,7 @@ import base64
 import datetime
 from datetime import date
 import re
+import textwrap
 
 # ==========================================
 # 1. 페이지 기본 설정
@@ -128,7 +129,6 @@ if main_menu == "1. 위험성평가":
             
             ra_writer = st.text_input("작성자 (직접입력)", value="전성배")
             
-            # [추가] 폼 내부에서 버튼 역할을 하는 체크박스 전자결재 로직
             st.markdown("**전자결재 서명 란 (클릭하여 승인)**")
             c_sign1, c_sign2, c_sign3 = st.columns(3)
             sign_manager = c_sign1.checkbox("관리감독자 서명 🖋️")
@@ -181,7 +181,6 @@ if main_menu == "1. 위험성평가":
                 tds.append('<td style="width:20%;"></td>')
             attendee_rows_html += f"<tr>{''.join(tds)}</tr>"
 
-        # 결재란 상태 결정 로직
         sign_html_manager = "[확인]<br><span style='font-size:8px; color:gray;'>signed</span>" if sign_manager else ""
         sign_html_safety = "[확인]<br><span style='font-size:8px; color:gray;'>signed</span>" if sign_safety else ""
         sign_html_director = "[확인]<br><span style='font-size:8px; color:gray;'>signed</span>" if sign_director else ""
@@ -280,9 +279,7 @@ if main_menu == "1. 위험성평가":
         else:
             photo_grid_html += '<div style="text-align:center; padding:20px; color:gray; border: 1px dashed #ccc; margin-top:10px; background-color:white;">첨부된 교육 전파 사진이 없습니다. 좌측에서 등록해 주세요.</div>'
 
-        # [필수 핵심] 마크다운 자동 파싱 오류를 100% 방지하기 위해 정규식으로 모든 줄바꿈과 공백을 압축
         clean_render_html = re.sub(r'>\s+<', '><', ra_html_page1 + photo_grid_html)
-        
         st.markdown(clean_render_html, unsafe_allow_html=True)
         
         if ra_submitted:
@@ -306,7 +303,7 @@ if main_menu == "1. 위험성평가":
             st.markdown(f'<div style="text-align:center; margin-top:20px;"><a href="data:text/html;base64,{ra_b64}" download="위험성평가_회의록_{ra_meeting_date.strftime("%Y%m%d")}.html" style="padding:12px 25px; background-color:#1E4D6B; color:white; text-decoration:none; border-radius:6px; font-weight:bold; font-size:14px;">🖨️ 현장제출용 A4 양식 출력하기</a></div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# [모듈 3] 사고보고서 (기존과 동일)
+# [모듈 3] 사고보고서
 # ---------------------------------------------------------
 elif main_menu == "3. 사고보고서":
     
@@ -470,22 +467,23 @@ elif main_menu == "3. 사고보고서":
             if st.button("🖨️ A4 보고서 생성 및 인쇄 다운로드", type="primary", use_container_width=True):
                 s_color = "blue" if row.get('진행상태', '') == "종결" else "red"
 
+                # [수정] 인쇄 렌더링 깨짐 방지를 위해 width 강제 고정 및 white-space: nowrap 추가
                 html_1 = ''.join([
-                    '<table class="gapji-table">',
+                    '<table class="gapji-table" style="width:100%; border-collapse:collapse; border:2px solid #000;">',
                     '<tr><td colspan="8" style="font-size: 26px; font-weight: bold; border:none; padding-bottom: 15px;">재해발생보고서</td></tr>',
-                    '<tr><td colspan="2" style="font-size: 32px; font-weight: bold; border:none; text-align:left;">신건설(주)</td>',
-                    '<td colspan="6" style="border:none; text-align:right;">',
-                    '<table border="1" style="display:inline-block; border-collapse:collapse; font-size:11px; margin-right:5px; text-align:center;">',
+                    '<tr><td colspan="3" style="font-size: 32px; font-weight: bold; border:none; text-align:left; vertical-align:bottom;">신건설(주)</td>',
+                    '<td colspan="5" style="border:none; text-align:right; white-space:nowrap; vertical-align:bottom; padding-bottom:5px;">',
+                    '<table border="1" style="display:inline-table; border-collapse:collapse; font-size:11px; margin-right:5px; text-align:center;">',
                     '<tr><td rowspan="2" class="gapji-header" style="width:20px;">현<br>장</td><td class="gapji-header" style="width:55px;">안전담당</td><td class="gapji-header" style="width:55px;">공사/공무</td><td class="gapji-header" style="width:55px;">현장소장</td></tr>',
                     f'<tr><td style="height:42px; color:blue;">{get_sign(row.get("안전담당", ""))}</td><td style="color:blue;">{get_sign(row.get("공사/공무 담당", ""))}</td><td style="color:red;">{get_sign(row.get("현장소장", ""))}</td></tr></table>',
-                    '<table border="1" style="display:inline-block; border-collapse:collapse; font-size:11px; text-align:center;">',
+                    '<table border="1" style="display:inline-table; border-collapse:collapse; font-size:11px; text-align:center;">',
                     '<tr><td rowspan="2" class="gapji-header" style="width:20px;">본<br>사</td><td class="gapji-header" style="width:55px;">안전팀</td><td class="gapji-header" style="width:55px;">공사팀</td><td class="gapji-header" style="width:55px;">PM</td><td class="gapji-header" style="width:55px;">대표이사</td></tr>',
                     f'<tr><td style="height:42px; color:blue;">{get_sign(row.get("안전팀", ""))}</td><td style="color:blue;">{get_sign(row.get("공사팀", ""))}</td><td style="color:blue;">{get_sign(row.get("PM", ""))}</td><td style="color:red;">{get_sign(row.get("대표이사", ""))}</td></tr></table>',
                     '</td></tr>',
                     f'<tr><td class="gapji-header" style="width:12%;">현장명</td><td colspan="3" style="width:38%; font-weight:bold;">{row.get("현장명", "")}</td><td class="gapji-header" style="width:12%;">사고장소</td><td colspan="3" style="width:38%;">{row.get("사고장소", "")}</td></tr>',
                     f'<tr><td class="gapji-header" style="height:60px;">사고경위</td><td colspan="7" style="text-align:left; padding:8px;">{row.get("사고경위", "")}</td></tr>',
                     f'<tr><td class="gapji-header">사고원인</td><td colspan="7" style="text-align:left; padding:8px;">{row.get("사고원인", "")}</td></tr>',
-                    f'<tr><td rowspan="3" class="gapji-header">피재자</td><td class="gapji-header">성명</td><td>{row.get("피재자", "")}</td><td class="gapji-header">생년월일</td><td>{row.get("생년월일", "")}</td><td class="gapji-header">채용일자</td><td colspan="2">{row.get("채용일자", "")}</td></tr>',
+                    f'<tr><td rowspan="3" class="gapji-header">피재자</td><td class="gapji-header">성명</td><td style="width:13%;">{row.get("피재자", "")}</td><td class="gapji-header" style="width:12%;">생년월일</td><td style="width:13%;">{row.get("생년월일", "")}</td><td class="gapji-header" style="width:12%;">채용일자</td><td colspan="2">{row.get("채용일자", "")}</td></tr>',
                     f'<tr><td class="gapji-header">소속/직급</td><td>{row.get("소속_직급", "")}</td><td class="gapji-header">직종</td><td>{row.get("직종", "")}</td><td class="gapji-header">채용기간</td><td colspan="2">상세관리</td></tr>',
                     f'<tr><td class="gapji-header">주소</td><td colspan="3">사내 대장 전산 확인</td><td class="gapji-header">국적</td><td colspan="2">{row.get("국적_체류코드", "")}</td></tr>',
                     f'<tr><td rowspan="3" class="gapji-header">재발방지</td><td class="gapji-header">기술적</td><td colspan="6" style="text-align:left; padding-left:5px;">{row.get("기술적대책", "")}</td></tr>',
@@ -500,7 +498,7 @@ elif main_menu == "3. 사고보고서":
                 ])
 
                 html_2 = ''.join([
-                    '<table class="gapji-table" style="table-layout:fixed; width:100%;">',
+                    '<table class="gapji-table" style="width:100%; table-layout:fixed; border-collapse:collapse; border:2px solid #000;">',
                     '<tr><td colspan="2" style="font-size:26px; font-weight:bold; border:none; padding-bottom:20px;">사고현장 상황도</td></tr>',
                     build_grid(process_images_for_html(files_situ, "250px"), "사진 1<br>사고상황도"),
                     build_grid(process_images_for_html(files_injury, "250px"), "사진 2<br>재해정도"),
@@ -510,9 +508,18 @@ elif main_menu == "3. 사고보고서":
                 final_print_html = re.sub(r'>\s+<', '><', html_1 + "<br><br>" + html_2)
                 st.markdown(final_print_html, unsafe_allow_html=True)
 
+                # [수정] 인쇄 전용 CSS 강제 적용 (폭 고정 및 백그라운드 색상 보존)
                 standalone_html = f"""
                 <!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>보고서 인쇄</title>
-                <style>@page {{ size: A4; margin: 10mm 15mm; }} body {{ background: #fff; }} .gapji-table {{ width: 100%; border-collapse: collapse; font-family: 'Malgun Gothic', sans-serif; font-size: 14px; border: 2px solid #000; margin-bottom: 20px; }} .gapji-table th, .gapji-table td {{ border: 1px solid #000; padding: 7px; text-align: center; vertical-align: middle; }} .gapji-header {{ background-color: #f0f0f0; font-weight: bold; }} .grid-photo {{ width: 100%; height: 280px; object-fit: contain; display: block; margin: 0 auto; }} .page-break {{ page-break-before: always; }}</style>
+                <style>
+                    @page {{ size: A4 portrait; margin: 10mm 15mm; }} 
+                    body {{ background: #fff; width: 100%; margin: 0 auto; padding: 0; box-sizing: border-box; }} 
+                    .gapji-table {{ width: 100%; max-width: 100%; border-collapse: collapse; font-family: 'Malgun Gothic', sans-serif; font-size: 13px; border: 2px solid #000; margin-bottom: 20px; }} 
+                    .gapji-table th, .gapji-table td {{ border: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle; word-break: keep-all; }} 
+                    .gapji-header {{ background-color: #f0f0f0 !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }} 
+                    .grid-photo {{ width: 100%; height: 280px; object-fit: contain; display: block; margin: 0 auto; }} 
+                    .page-break {{ page-break-before: always; }}
+                </style>
                 </head><body onload="window.print()">{html_1}<div class="page-break"></div>{html_2}</body></html>
                 """
                 b64_html = base64.b64encode(standalone_html.encode('utf-8')).decode('utf-8')
