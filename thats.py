@@ -467,17 +467,18 @@ elif main_menu == "3. 사고보고서":
             if st.button("🖨️ A4 보고서 생성 및 인쇄 다운로드", type="primary", use_container_width=True):
                 s_color = "blue" if row.get('진행상태', '') == "종결" else "red"
 
+                # [수정 적용 완료] 결재란 확대
                 html_1 = ''.join([
                     '<table class="gapji-table" style="width:100%; table-layout:fixed; border-collapse:collapse; border:2px solid #000;">',
                     '<tr><td colspan="8" style="font-size: 26px; font-weight: bold; border:none; padding-bottom: 15px;">재해발생보고서</td></tr>',
                     '<tr><td colspan="3" style="font-size: 32px; font-weight: bold; border:none; text-align:left; vertical-align:bottom; padding-left:10px;">신건설(주)</td>',
-                    '<td colspan="5" style="border:none; text-align:right; vertical-align:bottom; padding-bottom:5px; padding-right:5px;">',
-                    '<table border="1" style="display:inline-table; border-collapse:collapse; font-size:10px; margin-right:5px; text-align:center; width:180px; table-layout:fixed;">',
-                    '<tr><td rowspan="2" class="gapji-header" style="width:20px; padding:2px;">현<br>장</td><td class="gapji-header" style="padding:2px;">안전담당</td><td class="gapji-header" style="padding:2px;">공사/공무</td><td class="gapji-header" style="padding:2px;">현장소장</td></tr>',
-                    f'<tr><td style="height:35px; color:blue; padding:0;">{get_sign(row.get("안전담당", ""))}</td><td style="color:blue; padding:0;">{get_sign(row.get("공사/공무 담당", ""))}</td><td style="color:red; padding:0;">{get_sign(row.get("현장소장", ""))}</td></tr></table>',
-                    '<table border="1" style="display:inline-table; border-collapse:collapse; font-size:10px; text-align:center; width:230px; table-layout:fixed;">',
-                    '<tr><td rowspan="2" class="gapji-header" style="width:20px; padding:2px;">본<br>사</td><td class="gapji-header" style="padding:2px;">안전팀</td><td class="gapji-header" style="padding:2px;">공사팀</td><td class="gapji-header" style="padding:2px;">PM</td><td class="gapji-header" style="padding:2px;">대표이사</td></tr>',
-                    f'<tr><td style="height:35px; color:blue; padding:0;">{get_sign(row.get("안전팀", ""))}</td><td style="color:blue; padding:0;">{get_sign(row.get("공사팀", ""))}</td><td style="color:blue; padding:0;">{get_sign(row.get("PM", ""))}</td><td style="color:red; padding:0;">{get_sign(row.get("대표이사", ""))}</td></tr></table>',
+                    '<td colspan="5" style="border:none; text-align:right; white-space:nowrap; vertical-align:bottom; padding-bottom:5px; padding-right:5px;">',
+                    '<table border="1" style="display:inline-table; border-collapse:collapse; font-size:12px; margin-right:8px; text-align:center; width:260px; table-layout:fixed;">',
+                    '<tr><td rowspan="2" class="gapji-header" style="width:30px; padding:4px;">현<br>장</td><td class="gapji-header" style="padding:4px;">안전담당</td><td class="gapji-header" style="padding:4px;">공사/공무</td><td class="gapji-header" style="padding:4px;">현장소장</td></tr>',
+                    f'<tr><td style="height:50px; color:blue; padding:0;">{get_sign(row.get("안전담당", ""))}</td><td style="color:blue; padding:0;">{get_sign(row.get("공사/공무 담당", ""))}</td><td style="color:red; padding:0;">{get_sign(row.get("현장소장", ""))}</td></tr></table>',
+                    '<table border="1" style="display:inline-table; border-collapse:collapse; font-size:12px; text-align:center; width:320px; table-layout:fixed;">',
+                    '<tr><td rowspan="2" class="gapji-header" style="width:30px; padding:4px;">본<br>사</td><td class="gapji-header" style="padding:4px;">안전팀</td><td class="gapji-header" style="padding:4px;">공사팀</td><td class="gapji-header" style="padding:4px;">PM</td><td class="gapji-header" style="padding:4px;">대표이사</td></tr>',
+                    f'<tr><td style="height:50px; color:blue; padding:0;">{get_sign(row.get("안전팀", ""))}</td><td style="color:blue; padding:0;">{get_sign(row.get("공사팀", ""))}</td><td style="color:blue; padding:0;">{get_sign(row.get("PM", ""))}</td><td style="color:red; padding:0;">{get_sign(row.get("대표이사", ""))}</td></tr></table>',
                     '</td></tr>',
                     f'<tr><td class="gapji-header" style="width:12%;">현장명</td><td colspan="3" style="width:38%; font-weight:bold;">{row.get("현장명", "")}</td><td class="gapji-header" style="width:12%;">사고장소</td><td colspan="3" style="width:38%;">{row.get("사고장소", "")}</td></tr>',
                     f'<tr><td class="gapji-header" style="height:60px;">사고경위</td><td colspan="7" style="text-align:left; padding:8px;">{row.get("사고경위", "")}</td></tr>',
@@ -496,7 +497,6 @@ elif main_menu == "3. 사고보고서":
                     '</table></td></tr></table>'
                 ])
 
-                # [수정 2] build_grid 호출 시 이미지 높이를 400px로 대폭 키움
                 html_2 = ''.join([
                     '<table class="gapji-table" style="width:100%; table-layout:fixed; border-collapse:collapse; border:2px solid #000;">',
                     '<tr><td colspan="2" style="font-size:26px; font-weight:bold; border:none; padding-bottom:20px;">사고현장 상황도</td></tr>',
@@ -508,7 +508,6 @@ elif main_menu == "3. 사고보고서":
                 final_print_html = re.sub(r'>\s+<', '><', html_1 + "<br><br>" + html_2)
                 st.markdown(final_print_html, unsafe_allow_html=True)
 
-                # [수정 1] 인쇄 CSS에서 페이지 나누기(page-break-before) 제거 및 .photo-blank 높이 400px 반영
                 standalone_html = f"""
                 <!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>보고서 인쇄</title>
                 <style>
