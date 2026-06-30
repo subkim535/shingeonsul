@@ -21,8 +21,7 @@ except Exception as e:
     st.error(f"구글 시트 연동 실패: {e}")
     st.stop()
 
-# 필수 컬럼(사고보고서 및 서류 추적용) 검사 및 초기화
-# [법적 리스크 방지] '주민번호_앞자리'를 '생년월일'로 변경하여 관리합니다.
+# 필수 컬럼 초기화 및 검사
 required_cols = [
     "ID", "날짜", "현장명", "사고장소", "사고경위", "작업환경", "사고원인", 
     "사고유형", "상해피해정도", "피재자", "생년월일", "소속_직급", 
@@ -104,7 +103,7 @@ with st.sidebar:
 # ==========================================
 
 # ---------------------------------------------------------
-# [모듈 1] 위험성평가 (실제 서초현장 PDF 데이터 매칭 업그레이드)
+# [모듈 1] 위험성평가 
 # ---------------------------------------------------------
 if main_menu == "1. 위험성평가":
     st.header("📝 위험성평가 회의록 및 사진 등록")
@@ -130,15 +129,13 @@ if main_menu == "1. 위험성평가":
             
             ra_writer = st.text_input("작성자", value="전성배")
             
-            # PDF 실제 참석자 인원 명확히 매치 (구분을 위해 쉼표 기준으로 입력받음) [cite: 13, 14, 15, 17, 18, 19, 20, 21, 22, 23, 24, 25, 27, 28, 29]
             default_attendees = "소장 장도호, 품질 김정곤, 공사 조상호, 철근 오종훈, 형틀 김을탁, 형틀 강태웅, 형틀 박나경, 형틀 김범수, 타설 김선열, 알폼 김강호, 공무 한승훈, 공무 김현근, 안전 박정원, 안전 전성배, 해체 황호근"
             ra_attendees_list = st.text_area("참석자 명단 (반점 ','으로 구분)", value=default_attendees, height=100)
             
             st.markdown("---")
-            st.markdown("**2. 주요위험 관리 POINT (PDF 대장 실데이터 반영)**")
-            ra_agenda = st.text_input("주요안건", value="사전 유해.위험 점검, 논의 / 고위험 작업, 상습 부적합 사항") [cite: 40]
+            st.markdown("**2. 주요위험 관리 POINT**")
+            ra_agenda = st.text_input("주요안건", value="사전 유해.위험 점검, 논의 / 고위험 작업, 상습 부적합 사항")
             
-            # PDF 기준 6개 핵심 공종 안건 데이터 설정 [cite: 40]
             ra_risk_1 = st.text_area("1. 시스템", value="비계에 벽이음 가새 미설치 작업 중 붕괴 위험\nㄴ 설치 작업시 벽이음 선행 후 작업 실시 및 규정에 맞는 간격으로 설치 할 것", height=65)
             ra_risk_2 = st.text_area("2. 알폼", value="말비계상부 작업시 끝단부 작업 및 불안전한 행동으로 인한 추락 위험\nㄴ 낙상경보기 설치 및 승강 발판 미끄럼 방지 조치", height=65)
             ra_risk_3 = st.text_area("3. 철근", value="계단 철근 배근 후 이동 경사발판 미설치상태 철근을 밟고 이동 중 미끄러져 넘어짐\nㄴ 계단 경사철근 배근 직후 이동용 경사발판 설치 후 이동", height=65)
@@ -147,14 +144,13 @@ if main_menu == "1. 위험성평가":
             ra_risk_6 = st.text_area("6. 형틀", value="고소작업대 상승 후 연장 발판 사용 후 그대로 하강 도중 하부 구조물에 충돌하여 장비 전도 위험\nㄴ 연장 발판 내민상태로 내려오지않게 작업자 특별교육 실시", height=65)
             
             st.markdown("---")
-            st.markdown("**3. 의견 청취 및 종합 의견 (PDF 실데이터 반영)**")
-            # PDF 내부 복수 의견 청취 내역 조합 [cite: 44]
+            st.markdown("**3. 의견 청취 및 종합 의견**")
             default_opinions = "[형틀 강태웅] 현장 내 소변기 뿐만 아니라 간이 화장실이 더 늘었으면 좋겠음.\nㄴ LDSPM 회의 소장님 참가 시 DL측에 전달하여 답변을 기다리고 있으며 해당 근로자에겐 DL측 답변이 오면 전달해주기로함\n\n[보통인부 이길수] 대기소에서 사무실까지오는 발판 비계가 꺼진부분이 너무 많습니다. 교체해주세요\nㄴ DL 시설팀에 전달하여 06.29 교체예정이라고 답변 받음"
             ra_worker_opinion = st.text_area("근로자 의견청취", value=default_opinions, height=120)
             
-            ra_manager_opinion = st.text_input("관리감독자 의견", value="공정 진행에 따라 지하층 작업이 많아지고있는데 지하층 작업 전 조도 확보 후 작업 실시 할 것") [cite: 44]
-            ra_safety_opinion = st.text_input("안전관리자 의견", value="현장 내 휴게소 설치가 완료되었음에도 불구하고 휴게시간에 현장에 있는 인원이 많이 보이는데 각 팀 팀장님들은 휴게소 사용 할 수 있게 적극적으로 권유 할 것") [cite: 44]
-            ra_director_opinion = st.text_input("안전보건관리책임자 의견", value="날씨가 더워짐에 따라 근로자 개인 건강관리에 유념하며 몸에 이상이 있을시 바로 조치될 수 있도록 할것") [cite: 44]
+            ra_manager_opinion = st.text_input("관리감독자 의견", value="공정 진행에 따라 지하층 작업이 많아지고있는데 지하층 작업 전 조도 확보 후 작업 실시 할 것")
+            ra_safety_opinion = st.text_input("안전관리자 의견", value="현장 내 휴게소 설치가 완료되었음에도 불구하고 휴게시간에 현장에 있는 인원이 많이 보이는데 각 팀 팀장님들은 휴게소 사용 할 수 있게 적극적으로 권유 할 것")
+            ra_director_opinion = st.text_input("안전보건관리책임자 의견", value="날씨가 더워짐에 따라 근로자 개인 건강관리에 유념하며 몸에 이상이 있을시 바로 조치될 수 있도록 할것")
             
             st.markdown("---")
             st.markdown("**4. 사진대지 첨부**")
@@ -168,7 +164,6 @@ if main_menu == "1. 위험성평가":
         def format_text(text):
             return text.replace('\n', '<br>')
             
-        # 참석자 명단 바둑판 5열 그리드 분할 로직 (요청 디자인 반영)
         attendee_nodes = [name.strip() for name in ra_attendees_list.split(",") if name.strip()]
         attendee_rows_html = ""
         for i in range(0, len(attendee_nodes), 5):
