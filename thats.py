@@ -29,7 +29,7 @@ except Exception as e:
 
 required_cols = [
     "ID", "날짜", "현장명", "사고장소", "사고경위", "작업환경", "사고원인", 
-    "사고유 유형", "상해피해정도", "피재자", "생년월일", "소속_직급", 
+    "사고유형", "상해피해정도", "피재자", "생년월일", "소속_직급", 
     "직종", "채용일자", "국적_체류코드", "기술적대책", "관리적대책", "교육적대책",
     "안전담당", "공사/공무 담당", "현장소장", "안전팀", "공사팀", "PM", "대표이사",
     "사고보고서_제출", "재발방지대책_제출", "산재표_제출", "합의서_작성", "진행상태"
@@ -87,15 +87,15 @@ def get_sign(val):
     return ""
 
 # ==========================================
-# 4. 왼쪽 사이드바 (영문 ID 로그인 제어 허브)
+# 4. 왼쪽 사이드바 (텍스트 표출 로그인 제어부)
 # ==========================================
 with st.sidebar:
     st.title("🏗️ 신건설 통합관리 시스템")
     st.markdown("---")
     
-    # [요구사항 반영] 신규 직책 영문 ID 조건문 전면 이식
     st.subheader("🔐 시스템 보안 로그인")
-    user_id_input = st.text_input("접속 ID 입력 (공백 시 게스트)", value="", type="password").strip().lower()
+    # [수정] type="password" 속성을 제거하여 입력하는 영문 ID가 화면에 그대로 노출되도록 변경
+    user_id_input = st.text_input("접속 ID 입력 (공백 시 게스트)", value="").strip().lower()
     
     if user_id_input == "writer":
         user_role = "현장 작성자"
@@ -144,7 +144,7 @@ with st.sidebar:
 # ==========================================
 
 # ---------------------------------------------------------
-# [모듈 1] 위험성평가 (서명 연동 엔진 가동)
+# [모듈 1] 위험성평가
 # ---------------------------------------------------------
 if main_menu == "1. 위험성평가":
     st.header("📝 위험성평가 회의록 및 사진 등록")
@@ -217,9 +217,6 @@ if main_menu == "1. 위험성평가":
     with col_preview:
         st.subheader("🔸 위험성평가 회의록 (실제 양식 매칭 뷰)")
         
-        def format_text(text):
-            return text.replace('\n', '<br>')
-            
         attendee_nodes = [name.strip() for name in ra_attendees_list.split(",") if name.strip()]
         attendee_rows_html = ""
         for i in range(0, len(attendee_nodes), 5):
@@ -352,7 +349,7 @@ if main_menu == "1. 위험성평가":
             st.markdown(f'<div style="text-align:center; margin-top:20px;"><a href="data:text/html;base64,{ra_b64}" download="위험성평가_회의록_{ra_meeting_date.strftime("%Y%m%d")}.html" style="padding:12px 25px; background-color:#1E4D6B; color:white; text-decoration:none; border-radius:8px; font-weight:bold; font-size:14px;">🖨️ 현장제출용 A4 양식 출력하기</a></div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# [모듈 3] 사고보고서 (4단계 대장 전면 연동)
+# [모듈 3] 사고보고서
 # ---------------------------------------------------------
 elif main_menu == "3. 사고보고서":
     
