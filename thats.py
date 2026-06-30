@@ -17,33 +17,35 @@ except Exception as e:
     st.error(f"구글 시트 연동 실패: {e}")
     st.stop()
 
+# ★ 필수 컬럼에 서류 제출 현황 추가
 required_cols = [
     "ID", "날짜", "현장명", "사고장소", "사고경위", "작업환경", "사고원인", 
     "사고유형", "상해피해정도", "피재자", "주민번호_앞자리", "소속_직급", 
     "직종", "채용일자", "국적_체류코드", "기술적대책", "관리적대책", "교육적대책",
-    "안전담당", "공사/공무 담당", "현장소장", "안전팀", "공사팀", "PM", "대표이사"
+    "안전담당", "공사/공무 담당", "현장소장", "안전팀", "공사팀", "PM", "대표이사",
+    "사고보고서_제출", "재발방지대책_제출", "산재표_제출", "합의서_작성", "진행상태"
 ]
+
+# 누락된 컬럼이 있으면 기본값으로 채우기
 for col in required_cols:
     if col not in df.columns:
-        df[col] = "대기"
+        if col == "사고보고서_제출": df[col] = "O"
+        elif col in ["재발방지대책_제출", "산재표_제출", "합의서_작성"]: df[col] = "X"
+        elif col == "진행상태": df[col] = "진행중"
+        else: df[col] = "대기"
 
 approvers = ["안전담당", "공사/공무 담당", "현장소장", "안전팀", "공사팀", "PM", "대표이사"]
 
 # 3. 전체 UI 커스텀 CSS
 st.markdown("""
 <style>
-/* 사이드바 디자인 커스텀 */
 [data-testid="stSidebar"] { background-color: #1E4D6B; }
 [data-testid="stSidebar"] * { color: white !important; }
-
-/* 미리보기 및 출력용 테이블 */
 .gapji-table { width: 100% !important; border-collapse: collapse !important; font-family: 'Malgun Gothic', sans-serif; font-size: 13px; color: #000; border: 2px solid #000 !important; margin-bottom: 20px; }
 .gapji-table th, .gapji-table td { border: 1px solid #000 !important; padding: 6px !important; text-align: center; vertical-align: middle; }
 .gapji-header { background-color: #f0f0f0 !important; font-weight: bold; }
 .grid-photo { width: 100%; height: 280px; object-fit: contain; background-color: #fafafa; display: block; margin: 0 auto; }
 .photo-blank { height: 280px; display: flex; justify-content: center; align-items: center; color: #999; font-size: 13px; background-color: #fafafa; }
-
-/* 폼 위젯 여백 축소 */
 div[data-testid="stForm"] { padding: 1rem; border: 2px solid #ddd; border-radius: 8px;}
 .stTextInput, .stDateInput, .stTimeInput, .stSelectbox { margin-bottom: -10px; }
 </style>
@@ -79,18 +81,15 @@ if main_menu == "3. 사고보고서":
     # ----------------------------------------
     if sub_menu == "📝 보고서 작성":
         st.header("📝 사고보고서 등록")
-        
         col_input, col_preview = st.columns([5, 5])
         
         with col_input:
             st.subheader("🔸 입력창")
             with st.form("input_form"):
                 site_name = st.text_input("현장명", value="수원당수현장")
-                
                 c1, c2 = st.columns(2)
                 accident_date = c1.date_input("사고일자", value=date.today())
                 accident_time = c2.time_input("사고시간", value=datetime.time(10, 30))
-                
                 accident_place = st.text_input("사고장소", value="201동 B2F 주차장 구간")
                 work_detail = st.text_input("작업환경", value="데크보 설치 작업중")
                 accident_cause = st.text_input("사고원인", value="하부 동바리 설치 중에 슬링벨트를 풀면서 데크보가 무너짐")
@@ -102,11 +101,9 @@ if main_menu == "3. 사고보고서":
                 p1, p2 = st.columns(2)
                 p_name_ko = p1.text_input("피재자 성명", value="나형들")
                 p_birth_code = p2.text_input("주민번호 앞자리", value="781231")
-                
                 p3, p4 = st.columns(2)
                 p_team = p3.text_input("소속/직급", value="김개똥팀")
                 p_gongjong = p4.text_input("직종", value="형틀공")
-                
                 p5, p6 = st.columns(2)
                 p_hire_date = p5.date_input("채용일자", value=date(2024, 5, 2))
                 p_nation = p6.text_input("국적/체류코드", value="베트남 / F-6")
@@ -129,7 +126,9 @@ if main_menu == "3. 사고보고서":
                         "주민번호_앞자리": p_birth_code, "소속_직급": p_team, "직종": p_gongjong,
                         "채용일자": str(p_hire_date), "국적_체류코드": p_nation, "기술적대책": prevent_tech,
                         "관리적대책": prevent_admin, "교육적대책": prevent_edu,
-                        **{app: "대기" for app in approvers}
+                        **{app: "대기" for app in approvers},
+                        # ★ 최초 작성 시 기본 상태값 세팅
+                        "사고보고서_제출": "O", "재발방지대책_제출": "X", "산재표_제출": "X", "합의서_작성": "X", "진행상태": "진행중"
                     }])
                     conn.update(data=pd.concat([df, new_row], ignore_index=True))
                     st.success("✅ 등록 완료!")
@@ -151,25 +150,50 @@ if main_menu == "3. 사고보고서":
                     <tr><td class="gapji-header">사고원인</td><td colspan="3" style="text-align:left;">{accident_cause}</td></tr>
                     <tr><td class="gapji-header">사고경위<br><span style="font-size:10px; font-weight:normal;">(자동완성)</span></td>
                         <td colspan="3" style="text-align:left; background-color:#fff3e0; font-weight:bold;">{auto_detail}</td></tr>
+                    <tr><td colspan="4" style="padding:0; border:none;">
+                        <table style="width:100%; border-collapse:collapse; text-align:center; margin-top:10px;">
+                            <tr style="background-color:#f0f0f0; font-weight:bold;">
+                                <td>사고보고서</td><td>재발방지대책</td><td>산재표 제출</td><td>합의서 작성</td><td>진행상태</td>
+                            </tr>
+                            <tr>
+                                <td>O</td><td>X</td><td>X</td><td>X</td><td style="color:red; font-weight:bold;">진행중</td>
+                            </tr>
+                        </table>
+                    </td></tr>
                 </table>
             </div>
             """
             st.markdown(preview_html, unsafe_allow_html=True)
-            st.info("좌측 입력창의 내용이 이곳에 실시간으로 반영됩니다. 작성이 끝나면 하단의 [저장] 버튼을 누르세요.")
+            st.info("작성이 끝나면 하단의 [저장] 버튼을 누르세요. 최초 저장 시 '진행중'으로 등록됩니다.")
 
     # ----------------------------------------
-    # [메뉴 2] 결재 및 진행 현황 (에디터 기능 유지)
+    # [메뉴 2] 결재 및 진행 현황 (★ 자동 종결 계산 로직 추가)
     # ----------------------------------------
     elif sub_menu == "📊 결재 및 진행 현황":
-        st.header("📊 전사 사고 대장 및 결재 현황")
+        st.header("📊 전사 사고 대장 및 서류 제출 현황")
+        st.caption("안내: '합의서 작성'은 본사 권한에서만 N/A 처리가 가능하며, 필요 서류가 모두(O 또는 N/A) 제출되면 자동으로 '종결' 처리됩니다.")
+        
         edited_df = st.data_editor(df, num_rows="dynamic", use_container_width=True, hide_index=True)
+        
         if st.button("💾 변경된 사항 저장", type="primary"):
+            # ★ 모든 행을 돌면서 서류가 다 제출되었는지 검사 후 '진행상태' 자동 업데이트
+            for idx in edited_df.index:
+                doc1 = str(edited_df.loc[idx, "사고보고서_제출"]).strip().upper()
+                doc2 = str(edited_df.loc[idx, "재발방지대책_제출"]).strip().upper()
+                doc3 = str(edited_df.loc[idx, "산재표_제출"]).strip().upper()
+                doc4 = str(edited_df.loc[idx, "합의서_작성"]).strip().upper()
+
+                if doc1 == "O" and doc2 == "O" and doc3 == "O" and doc4 in ["O", "N/A"]:
+                    edited_df.loc[idx, "진행상태"] = "종결"
+                else:
+                    edited_df.loc[idx, "진행상태"] = "진행중"
+
             conn.update(data=edited_df)
-            st.success("저장 완료!")
+            st.success("✅ 상태가 저장되고 종결 여부가 자동 업데이트되었습니다!")
             st.rerun()
 
     # ----------------------------------------
-    # [메뉴 3] 사진 첨부 및 출력 (원본 HTML 출력 기능 100% 복구)
+    # [메뉴 3] 사진 첨부 및 출력 (★ 서류 제출 현황 표 삽입)
     # ----------------------------------------
     elif sub_menu == "🖨️ 사진 첨부 및 출력":
         st.header("🖨️ 보고서 출력 및 사진 첨부")
@@ -210,7 +234,9 @@ if main_menu == "3. 사고보고서":
                         return "<b>[확인]<br><span style='font-size:9px; color:gray;'>signed</span></b>"
                     return ""
                 
-                # 갑지 생성
+                status_color = "blue" if row.get('진행상태', '') == "종결" else "red"
+
+                # ★ 갑지에 서류 제출 현황 추가됨
                 html_1 = ''.join([
                     '<table class="gapji-table">',
                     '<tr><td colspan="8" style="font-size: 26px; font-weight: bold; border:none; padding-bottom: 15px;">재해발생보고서</td></tr>',
@@ -235,11 +261,20 @@ if main_menu == "3. 사고보고서":
                     f'<tr><td rowspan="3" class="gapji-header">재발방지</td><td class="gapji-header">기술적</td><td colspan="6" style="text-align:left; padding-left:5px;">{row.get("기술적대책", "")}</td></tr>',
                     f'<tr><td class="gapji-header">관리적</td><td colspan="6" style="text-align:left; padding-left:5px;">{row.get("관리적대책", "")}</td></tr>',
                     f'<tr><td class="gapji-header">교육적</td><td colspan="6" style="text-align:left; padding-left:5px;">{row.get("교육적대책", "")}</td></tr>',
+                    
+                    # 서류 제출 현황 추가 영역
+                    '<tr><td colspan="8" style="padding:0; border:none;">',
+                    '<table style="width:100%; border-collapse:collapse; text-align:center; margin-top:10px; margin-bottom:10px;">',
+                    '<tr><td colspan="5" class="gapji-header">사고 서류 제출 현황</td></tr>',
+                    '<tr><td class="gapji-header">사고보고서 제출</td><td class="gapji-header">재발방지대책</td><td class="gapji-header">산재표 제출</td><td class="gapji-header">합의서 작성</td><td class="gapji-header">진행상태</td></tr>',
+                    f'<tr><td>{row.get("사고보고서_제출", "O")}</td><td>{row.get("재발방지대책_제출", "X")}</td><td>{row.get("산재표_제출", "X")}</td><td>{row.get("합의서_작성", "X")}</td><td style="font-weight:bold; color:{status_color};">{row.get("진행상태", "진행중")}</td></tr>',
+                    '</table>',
+                    '</td></tr>',
+
                     '<tr><td class="gapji-header">첨부서류</td><td colspan="7" style="text-align:left; padding-left:5px;">추후 진단서 첨부 예정</td></tr>',
                     '</table>'
                 ])
 
-                # 을지 생성
                 html_2 = ''.join([
                     '<table class="gapji-table" style="table-layout:fixed; width:100%;">',
                     '<colgroup><col style="width:15%;"><col style="width:85%;"></colgroup>',
@@ -254,7 +289,6 @@ if main_menu == "3. 사고보고서":
 
                 st.markdown(html_1 + "<br><br>" + html_2, unsafe_allow_html=True)
 
-                # HTML 다운로드용 Base64 인코딩
                 standalone_html = f"""
                 <!DOCTYPE html>
                 <html lang="ko">
