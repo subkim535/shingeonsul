@@ -4,7 +4,7 @@ from streamlit_gsheets import GSheetsConnection
 import base64
 import datetime
 from datetime import date
-import textwrap
+import re
 
 # ==========================================
 # 1. 페이지 기본 설정
@@ -22,7 +22,6 @@ except Exception as e:
     st.error(f"구글 시트 연동 실패: {e}")
     st.stop()
 
-# 필수 컬럼 초기화 및 검사
 required_cols = [
     "ID", "날짜", "현장명", "사고장소", "사고경위", "작업환경", "사고원인", 
     "사고유형", "상해피해정도", "피재자", "생년월일", "소속_직급", 
@@ -83,7 +82,7 @@ def get_sign(val):
     return ""
 
 # ==========================================
-# 4. 왼쪽 사이드바 (Navigation Menu)
+# 4. 왼쪽 사이드바
 # ==========================================
 with st.sidebar:
     st.title("🏗️ 신건설 통합관리 시스템")
@@ -127,7 +126,14 @@ if main_menu == "1. 위험성평가":
             ra_meeting_date = c5.date_input("회의일", value=date(2026, 6, 24))
             ra_attendees_count = c6.text_input("참석인원", value="16명")
             
-            ra_writer = st.text_input("작성자", value="전성배")
+            ra_writer = st.text_input("작성자 (직접입력)", value="전성배")
+            
+            # [추가] 폼 내부에서 버튼 역할을 하는 체크박스 전자결재 로직
+            st.markdown("**전자결재 서명 란 (클릭하여 승인)**")
+            c_sign1, c_sign2, c_sign3 = st.columns(3)
+            sign_manager = c_sign1.checkbox("관리감독자 서명 🖋️")
+            sign_safety = c_sign2.checkbox("안전관리자 서명 🖋️")
+            sign_director = c_sign3.checkbox("현장소장 서명 🖋️")
             
             default_attendees = "소장 장도호, 품질 김정곤, 공사 조상호, 철근 오종훈, 형틀 김을탁, 형틀 강태웅, 형틀 박나경, 형틀 김범수, 타설 김선열, 알폼 김강호, 공무 한승훈, 공무 김현근, 안전 박정원, 안전 전성배, 해체 황호근"
             ra_attendees_list = st.text_area("참석자 명단 (반점 ','으로 구분)", value=default_attendees, height=100)
@@ -154,9 +160,9 @@ if main_menu == "1. 위험성평가":
             
             st.markdown("---")
             st.markdown("**4. 사진대지 첨부**")
-            ra_photos_meeting = st.file_uploader("회의 및 교육 사진 업로드 (여러 장 가능)", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
+            ra_photos_meeting = st.file_uploader("회의 및 교육 사진 업로드", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
             
-            ra_submitted = st.form_submit_button("💾 위험성평가 회의록 양식 생성", type="primary", use_container_width=True)
+            ra_submitted = st.form_submit_button("💾 서명 및 위험성평가 양식 생성", type="primary", use_container_width=True)
 
     with col_preview:
         st.subheader("🔸 위험성평가 회의록 (실제 양식 매칭 뷰)")
@@ -175,6 +181,11 @@ if main_menu == "1. 위험성평가":
                 tds.append('<td style="width:20%;"></td>')
             attendee_rows_html += f"<tr>{''.join(tds)}</tr>"
 
+        # 결재란 상태 결정 로직
+        sign_html_manager = "[확인]<br><span style='font-size:8px; color:gray;'>signed</span>" if sign_manager else ""
+        sign_html_safety = "[확인]<br><span style='font-size:8px; color:gray;'>signed</span>" if sign_safety else ""
+        sign_html_director = "[확인]<br><span style='font-size:8px; color:gray;'>signed</span>" if sign_director else ""
+
         ra_html_page1 = f"""
         <div style="background-color: white; padding: 20px; border: 1px solid #ccc; color: #000; font-family: 'Malgun Gothic', sans-serif;">
             <table style="width:100%; border-collapse:collapse; border:none; margin-bottom:10px;">
@@ -192,10 +203,10 @@ if main_menu == "1. 위험성평가":
                                 <td style="width:65px; padding:3px;">현장소장</td>
                             </tr>
                             <tr>
-                                <td style="height:38px; font-size:12px; font-weight:bold;">{ra_writer}</td>
-                                <td style="color:#22c55e; font-size:10px; font-weight:bold; vertical-align:middle;">[확인]<br><span style='font-size:8px; color:gray;'>signed</span></td>
-                                <td style="color:#22c55e; font-size:10px; font-weight:bold; vertical-align:middle;">[확인]<br><span style='font-size:8px; color:gray;'>signed</span></td>
-                                <td style="color:#22c55e; font-size:10px; font-weight:bold; vertical-align:middle;">[확인]<br><span style='font-size:8px; color:gray;'>signed</span></td>
+                                <td style="height:38px; font-size:12px; font-weight:bold; vertical-align:middle;">{ra_writer}</td>
+                                <td style="color:#22c55e; font-size:10px; font-weight:bold; vertical-align:middle;">{sign_html_manager}</td>
+                                <td style="color:#22c55e; font-size:10px; font-weight:bold; vertical-align:middle;">{sign_html_safety}</td>
+                                <td style="color:#22c55e; font-size:10px; font-weight:bold; vertical-align:middle;">{sign_html_director}</td>
                             </tr>
                         </table>
                     </td>
@@ -269,9 +280,10 @@ if main_menu == "1. 위험성평가":
         else:
             photo_grid_html += '<div style="text-align:center; padding:20px; color:gray; border: 1px dashed #ccc; margin-top:10px; background-color:white;">첨부된 교육 전파 사진이 없습니다. 좌측에서 등록해 주세요.</div>'
 
-        # 마크다운 자동 파싱 오류 방지를 위한 dedent 처리
-        final_html = textwrap.dedent(ra_html_page1 + photo_grid_html)
-        st.markdown(final_html, unsafe_allow_html=True)
+        # [필수 핵심] 마크다운 자동 파싱 오류를 100% 방지하기 위해 정규식으로 모든 줄바꿈과 공백을 압축
+        clean_render_html = re.sub(r'>\s+<', '><', ra_html_page1 + photo_grid_html)
+        
+        st.markdown(clean_render_html, unsafe_allow_html=True)
         
         if ra_submitted:
             ra_standalone_html = f"""
@@ -294,11 +306,10 @@ if main_menu == "1. 위험성평가":
             st.markdown(f'<div style="text-align:center; margin-top:20px;"><a href="data:text/html;base64,{ra_b64}" download="위험성평가_회의록_{ra_meeting_date.strftime("%Y%m%d")}.html" style="padding:12px 25px; background-color:#1E4D6B; color:white; text-decoration:none; border-radius:6px; font-weight:bold; font-size:14px;">🖨️ 현장제출용 A4 양식 출력하기</a></div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# [모듈 3] 사고보고서 - 서브메뉴 분기
+# [모듈 3] 사고보고서 (기존과 동일)
 # ---------------------------------------------------------
 elif main_menu == "3. 사고보고서":
     
-    # --- 3-1. 최초 사고보고서 작성 ---
     if sub_menu == "📝 최초 사고보고서 작성":
         st.header("📝 최초 사고보고서 등록")
         col_input, col_preview = st.columns([5, 5])
@@ -364,11 +375,10 @@ elif main_menu == "3. 사고보고서":
                 </table>
             </div>
             """
-            final_preview = textwrap.dedent(preview_html)
-            st.markdown(final_preview, unsafe_allow_html=True)
+            clean_preview = re.sub(r'>\s+<', '><', preview_html)
+            st.markdown(clean_preview, unsafe_allow_html=True)
             st.info("최초 저장 시 1단계(보고서 제출)만 완료되며, 나머지 서류는 [후속 서류 업데이트] 메뉴에서 진행합니다.")
 
-    # --- 3-2. 후속 서류 업데이트 ---
     elif sub_menu == "📎 후속 서류 업데이트":
         st.header("📎 후속 서류 및 사진 제출")
         if df.empty:
@@ -429,7 +439,6 @@ elif main_menu == "3. 사고보고서":
                     update_status(select_idx, "합의서_작성", "N/A")
                     st.rerun()
 
-    # --- 3-3. 통합 DB 뷰어 ---
     elif sub_menu == "📊 통합 DB (구글시트 뷰어)":
         st.header("📊 전사 사고 대장 통합 뷰어")
         st.caption("구글 스프레드시트에 접속할 필요 없이, 웹에서 전체 데이터를 확인하고 직접 수정(결재)할 수 있습니다.")
@@ -445,7 +454,6 @@ elif main_menu == "3. 사고보고서":
             st.success("✅ 구글 스프레드시트에 동기화 완료!")
             st.rerun()
 
-    # --- 3-4. 최종 보고서 출력 ---
     elif sub_menu == "🖨️ 최종 보고서 출력":
         st.header("🖨️ 상황도 작성 및 보고서 최종 인쇄")
         if df.empty:
@@ -499,7 +507,7 @@ elif main_menu == "3. 사고보고서":
                     '</table>'
                 ])
 
-                final_print_html = textwrap.dedent(html_1 + "<br><br>" + html_2)
+                final_print_html = re.sub(r'>\s+<', '><', html_1 + "<br><br>" + html_2)
                 st.markdown(final_print_html, unsafe_allow_html=True)
 
                 standalone_html = f"""
