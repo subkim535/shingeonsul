@@ -22,9 +22,10 @@ except Exception as e:
     st.stop()
 
 # 필수 컬럼(사고보고서 및 서류 추적용) 검사 및 초기화
+# [법적 리스크 방지] '주민번호_앞자리'를 '생년월일'로 변경하여 관리합니다.
 required_cols = [
     "ID", "날짜", "현장명", "사고장소", "사고경위", "작업환경", "사고원인", 
-    "사고유형", "상해피해정도", "피재자", "주민번호_앞자리", "소속_직급", 
+    "사고유형", "상해피해정도", "피재자", "생년월일", "소속_직급", 
     "직종", "채용일자", "국적_체류코드", "기술적대책", "관리적대책", "교육적대책",
     "안전담당", "공사/공무 담당", "현장소장", "안전팀", "공사팀", "PM", "대표이사",
     "사고보고서_제출", "재발방지대책_제출", "산재표_제출", "합의서_작성", "진행상태"
@@ -60,9 +61,10 @@ div[data-testid="stForm"] { padding: 1rem; border: 2px solid #ddd; border-radius
 # 사진을 HTML 태그로 변환하는 공통 함수
 def process_images_for_html(uploaded_files, height="200px"):
     tags = []
-    for f in uploaded_files:
-        encoded = base64.b64encode(f.getvalue()).decode()
-        tags.append(f'<img src="data:image/jpeg;base64,{encoded}" style="width:100%; height:{height}; object-fit:contain; background-color:#fafafa;">')
+    if uploaded_files:
+        for f in uploaded_files:
+            encoded = base64.b64encode(f.getvalue()).decode()
+            tags.append(f'<img src="data:image/jpeg;base64,{encoded}" style="width:100%; height:{height}; object-fit:contain; background-color:#fafafa;">')
     return tags
 
 def build_grid(tags, label):
@@ -102,12 +104,12 @@ with st.sidebar:
 # ==========================================
 
 # ---------------------------------------------------------
-# [모듈 1] 위험성평가 
+# [모듈 1] 위험성평가 (실제 서초현장 PDF 데이터 매칭 업그레이드)
 # ---------------------------------------------------------
 if main_menu == "1. 위험성평가":
     st.header("📝 위험성평가 회의록 및 사진 등록")
     
-    col_input, col_preview = st.columns([5, 5])
+    col_input, col_preview = st.columns([4, 6])
     
     with col_input:
         st.subheader("🔸 회의 내용 및 사진 입력창")
@@ -127,88 +129,150 @@ if main_menu == "1. 위험성평가":
             ra_attendees_count = c6.text_input("참석인원", value="16명")
             
             ra_writer = st.text_input("작성자", value="전성배")
-            ra_attendees_list = st.text_area("참석자 명단", value="소장 장도호, 철근 오종훈, 타설 김선열, 품질 김정곤, 공사 조상호, 형틀 김을탁, 형틀 강태웅, 형틀 박나경, 형틀 김범수, 알폼 김강호, 공무 한승훈, 공무 김현근, 안전 박정원, 안전 전성배, 해체 황호근", height=70)
+            
+            # PDF 실제 참석자 인원 명확히 매치 (구분을 위해 쉼표 기준으로 입력받음) [cite: 13, 14, 15, 17, 18, 19, 20, 21, 22, 23, 24, 25, 27, 28, 29]
+            default_attendees = "소장 장도호, 품질 김정곤, 공사 조상호, 철근 오종훈, 형틀 김을탁, 형틀 강태웅, 형틀 박나경, 형틀 김범수, 타설 김선열, 알폼 김강호, 공무 한승훈, 공무 김현근, 안전 박정원, 안전 전성배, 해체 황호근"
+            ra_attendees_list = st.text_area("참석자 명단 (반점 ','으로 구분)", value=default_attendees, height=100)
             
             st.markdown("---")
-            st.markdown("**2. 주요위험 관리 POINT**")
-            ra_agenda = st.text_input("주요안건", value="사전 유해.위험 점검, 논의 / 고위험 작업, 상습 부적합 사항")
+            st.markdown("**2. 주요위험 관리 POINT (PDF 대장 실데이터 반영)**")
+            ra_agenda = st.text_input("주요안건", value="사전 유해.위험 점검, 논의 / 고위험 작업, 상습 부적합 사항") [cite: 40]
             
-            ra_risk_1 = st.text_area("항목 1 (공종 / 위험요인 및 대책)", value="[시스템] 비계에 벽이음 가새 미설치 작업 중 붕괴 위험\nㄴ 설치 작업시 벽이음 선행 후 작업 실시 및 규정에 맞는 간격으로 설치 할 것", height=70)
-            ra_risk_2 = st.text_area("항목 2 (공종 / 위험요인 및 대책)", value="[알폼] 말비계상부 작업시 끝단부 작업 및 불안전한 행동으로 인한 추락 위험\nㄴ 낙상경보기 설치 및 승강 발판 미끄럼 방지 조치", height=70)
+            # PDF 기준 6개 핵심 공종 안건 데이터 설정 [cite: 40]
+            ra_risk_1 = st.text_area("1. 시스템", value="비계에 벽이음 가새 미설치 작업 중 붕괴 위험\nㄴ 설치 작업시 벽이음 선행 후 작업 실시 및 규정에 맞는 간격으로 설치 할 것", height=65)
+            ra_risk_2 = st.text_area("2. 알폼", value="말비계상부 작업시 끝단부 작업 및 불안전한 행동으로 인한 추락 위험\nㄴ 낙상경보기 설치 및 승강 발판 미끄럼 방지 조치", height=65)
+            ra_risk_3 = st.text_area("3. 철근", value="계단 철근 배근 후 이동 경사발판 미설치상태 철근을 밟고 이동 중 미끄러져 넘어짐\nㄴ 계단 경사철근 배근 직후 이동용 경사발판 설치 후 이동", height=65)
+            ra_risk_4 = st.text_area("4. PC", value="슬리브 타입 앙카 설치 후 돌출물에 걸려 넘어짐\nㄴ 앙카 설치 후 앙카부위 가시성 확보", height=65)
+            ra_risk_5 = st.text_area("5. 해체정리", value="거푸집 동바리 해체 작업 구간 조도확보 미흡으로 인한 전도 및 충돌 위험\nㄴ 투광등 지급 및 LED 설치 후 작업 실시", height=65)
+            ra_risk_6 = st.text_area("6. 형틀", value="고소작업대 상승 후 연장 발판 사용 후 그대로 하강 도중 하부 구조물에 충돌하여 장비 전도 위험\nㄴ 연장 발판 내민상태로 내려오지않게 작업자 특별교육 실시", height=65)
             
             st.markdown("---")
-            st.markdown("**3. 의견 청취**")
-            ra_worker_opinion = st.text_area("근로자 의견청취 / 등급 조정 안건", value="[형틀 강태웅] 현장 내 소변기 뿐만 아니라 간이 화장실이 더 늘었으면 좋겠음.\nㄴ LDSPM 회의 소장님 참가 시 DL측에 전달하여 답변 대기중", height=70)
-            ra_manager_opinion = st.text_input("관리감독자 의견", value="공정 진행에 따라 지하층 작업 전 조도 확보 후 작업 실시 할 것")
-            ra_safety_opinion = st.text_input("안전관리자 의견", value="휴게시간에 휴게소 사용 할 수 있게 적극 권유 할 것")
-            ra_director_opinion = st.text_input("안전보건관리책임자 의견", value="날씨가 더워짐에 따라 근로자 건강관리에 유념할 것")
+            st.markdown("**3. 의견 청취 및 종합 의견 (PDF 실데이터 반영)**")
+            # PDF 내부 복수 의견 청취 내역 조합 [cite: 44]
+            default_opinions = "[형틀 강태웅] 현장 내 소변기 뿐만 아니라 간이 화장실이 더 늘었으면 좋겠음.\nㄴ LDSPM 회의 소장님 참가 시 DL측에 전달하여 답변을 기다리고 있으며 해당 근로자에겐 DL측 답변이 오면 전달해주기로함\n\n[보통인부 이길수] 대기소에서 사무실까지오는 발판 비계가 꺼진부분이 너무 많습니다. 교체해주세요\nㄴ DL 시설팀에 전달하여 06.29 교체예정이라고 답변 받음"
+            ra_worker_opinion = st.text_area("근로자 의견청취", value=default_opinions, height=120)
+            
+            ra_manager_opinion = st.text_input("관리감독자 의견", value="공정 진행에 따라 지하층 작업이 많아지고있는데 지하층 작업 전 조도 확보 후 작업 실시 할 것") [cite: 44]
+            ra_safety_opinion = st.text_input("안전관리자 의견", value="현장 내 휴게소 설치가 완료되었음에도 불구하고 휴게시간에 현장에 있는 인원이 많이 보이는데 각 팀 팀장님들은 휴게소 사용 할 수 있게 적극적으로 권유 할 것") [cite: 44]
+            ra_director_opinion = st.text_input("안전보건관리책임자 의견", value="날씨가 더워짐에 따라 근로자 개인 건강관리에 유념하며 몸에 이상이 있을시 바로 조치될 수 있도록 할것") [cite: 44]
             
             st.markdown("---")
             st.markdown("**4. 사진대지 첨부**")
             ra_photos_meeting = st.file_uploader("회의 및 교육 사진 업로드 (여러 장 가능)", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
             
-            ra_submitted = st.form_submit_button("💾 회의록 양식 생성", type="primary", use_container_width=True)
+            ra_submitted = st.form_submit_button("💾 위험성평가 회의록 양식 생성", type="primary", use_container_width=True)
 
     with col_preview:
-        st.subheader("🔸 위험성평가 회의록 (미리보기)")
+        st.subheader("🔸 위험성평가 회의록 (실제 양식 매칭 뷰)")
         
         def format_text(text):
             return text.replace('\n', '<br>')
             
+        # 참석자 명단 바둑판 5열 그리드 분할 로직 (요청 디자인 반영)
+        attendee_nodes = [name.strip() for name in ra_attendees_list.split(",") if name.strip()]
+        attendee_rows_html = ""
+        for i in range(0, len(attendee_nodes), 5):
+            row_nodes = attendee_nodes[i:i+5]
+            tds = []
+            for node in row_nodes:
+                tds.append(f'<td style="width:20%; text-align:left; padding:6px 10px;">{node} <span style="float:right; font-size:10px; color:#1E4D6B; border:1px solid #1E4D6B; padding:0 2px; border-radius:3px;">(인)</span></td>')
+            while len(tds) < 5:
+                tds.append('<td style="width:20%;"></td>')
+            attendee_rows_html += f"<tr>{''.join(tds)}</tr>"
+
         ra_html_page1 = f"""
-        <div style="background-color: white; padding: 15px; border: 2px solid #4CAF50; border-radius: 8px;">
-            <table class="gapji-table" style="background-color: white;">
-                <tr><td colspan="5" style="font-size: 24px; font-weight: bold; background-color:#fff;">위험성평가 회의록</td></tr>
+        <div style="background-color: white; padding: 20px; border: 1px solid #ccc; color: #000; font-family: 'Malgun Gothic', sans-serif;">
+            <table style="width:100%; border-collapse:collapse; border:none; margin-bottom:10px;">
                 <tr>
-                    <td class="gapji-header" style="width:15%;">현장명</td><td style="width:35%;">{ra_site}</td>
-                    <td class="gapji-header" style="width:15%;">작업기간</td><td colspan="2" style="width:35%;">{ra_date_start.strftime('%y.%m.%d')} ~ {ra_date_end.strftime('%y.%m.%d')}</td>
-                </tr>
-                <tr>
-                    <td class="gapji-header">장 소</td><td>{ra_place}</td>
-                    <td class="gapji-header">회의일</td><td colspan="2">{ra_meeting_date.strftime('%y.%m.%d')}</td>
-                </tr>
-                <tr>
-                    <td class="gapji-header">참석인원</td><td>{ra_attendees_count}</td>
-                    <td class="gapji-header">작성자</td><td colspan="2">{ra_writer}</td>
-                </tr>
-                <tr>
-                    <td class="gapji-header">참석자명단</td><td colspan="4" style="text-align:left; padding:10px;">{ra_attendees_list}</td>
-                </tr>
-                <tr>
-                    <td class="gapji-header" rowspan="3">주요위험<br>관리POINT</td>
-                    <td colspan="4" style="text-align:left; font-weight:bold; background-color:#f9f9f9;">[주요안건] {ra_agenda}</td>
-                </tr>
-                <tr><td colspan="4" style="text-align:left; padding:10px;">{format_text(ra_risk_1)}</td></tr>
-                <tr><td colspan="4" style="text-align:left; padding:10px;">{format_text(ra_risk_2)}</td></tr>
-                <tr>
-                    <td class="gapji-header">근로자<br>의견청취</td>
-                    <td colspan="4" style="text-align:left; padding:10px;">{format_text(ra_worker_opinion)}</td>
-                </tr>
-                <tr>
-                    <td class="gapji-header">관리감독자</td><td colspan="4" style="text-align:left; padding:10px;">{ra_manager_opinion}</td>
-                </tr>
-                <tr>
-                    <td class="gapji-header">안전관리자</td><td colspan="4" style="text-align:left; padding:10px;">{ra_safety_opinion}</td>
-                </tr>
-                <tr>
-                    <td class="gapji-header">책임자총평</td><td colspan="4" style="text-align:left; padding:10px;">{ra_director_opinion}</td>
+                    <td style="border:none; text-align:left; vertical-align:middle;">
+                        <span style="font-size: 24px; font-weight: bold; letter-spacing:-1px;">위험성평가 회의록</span>
+                    </td>
+                    <td style="border:none; text-align:right;">
+                        <table border="1" style="display:inline-block; border-collapse:collapse; font-size:11px; text-align:center; color:#000; border:1px solid #000;">
+                            <tr style="background-color:#f0f0f0; font-weight:bold;">
+                                <td rowspan="2" style="width:20px; padding:2px;">결<br>재</td>
+                                <td style="width:65px; padding:3px;">작성</td>
+                                <td style="width:65px; padding:3px;">관리감독자</td>
+                                <td style="width:65px; padding:3px;">안전관리자</td>
+                                <td style="width:65px; padding:3px;">현장소장</td>
+                            </tr>
+                            <tr>
+                                <td style="height:38px; font-size:12px; font-weight:bold;">{ra_writer}</td>
+                                <td style="color:#22c55e; font-size:10px; font-weight:bold; vertical-align:middle;">[확인]<br><span style='font-size:8px; color:gray;'>signed</span></td>
+                                <td style="color:#22c55e; font-size:10px; font-weight:bold; vertical-align:middle;">[확인]<br><span style='font-size:8px; color:gray;'>signed</span></td>
+                                <td style="color:#22c55e; font-size:10px; font-weight:bold; vertical-align:middle;">[확인]<br><span style='font-size:8px; color:gray;'>signed</span></td>
+                            </tr>
+                        </table>
+                    </td>
                 </tr>
             </table>
+
+            <table class="gapji-table" style="background-color: white; margin-bottom:15px;">
+                <tr>
+                    <td class="gapji-header" style="width:15%;">현장명</td><td style="width:35%; font-weight:bold; text-align:left; padding-left:10px;">{ra_site}</td>
+                    <td class="gapji-header" style="width:15%;">작업기간</td><td style="width:35%; text-align:left; padding-left:10px;">{ra_date_start.strftime('%Y.%m.%d')} ~ {ra_date_end.strftime('%Y.%m.%d')}</td>
+                </tr>
+                <tr>
+                    <td class="gapji-header">장 소</td><td style="text-align:left; padding-left:10px;">{ra_place}</td>
+                    <td class="gapji-header">회의일</td><td style="text-align:left; padding-left:10px;">{ra_meeting_date.strftime('%Y.%m.%d')}</td>
+                </tr>
+                <tr>
+                    <td class="gapji-header">참석인원</td><td style="text-align:left; padding-left:10px;">{ra_attendees_count}</td>
+                    <td class="gapji-header">작성자</td><td style="text-align:left; padding-left:10px;">{ra_writer}</td>
+                </tr>
+            </table>
+
+            <p style="margin:5px 0; font-weight:bold; font-size:13px;">【 참석자 명단 】</p>
+            <table class="gapji-table" style="background-color: white; margin-bottom:20px;">
+                {attendee_rows_html}
+            </table>
+
+            <table class="gapji-table" style="background-color: white; margin-bottom:15px;">
+                <tr>
+                    <td class="gapji-header" style="width:15%;" rowspan="7">주요위험<br>관리POINT</td>
+                    <td colspan="2" style="text-align:left; font-weight:bold; background-color:#f5f5f5; padding:8px;">[주요안건] {ra_agenda}</td>
+                </tr>
+                <tr><td style="width:15%; background-color:#fafafa; font-weight:bold;">시스템</td><td style="text-align:left; padding:8px;">{format_text(ra_risk_1)}</td></tr>
+                <tr><td style="background-color:#fafafa; font-weight:bold;">알폼</td><td style="text-align:left; padding:8px;">{format_text(ra_risk_2)}</td></tr>
+                <tr><td style="background-color:#fafafa; font-weight:bold;">철근</td><td style="text-align:left; padding:8px;">{format_text(ra_risk_3)}</td></tr>
+                <tr><td style="background-color:#fafafa; font-weight:bold;">PC</td><td style="text-align:left; padding:8px;">{format_text(ra_risk_4)}</td></tr>
+                <tr><td style="background-color:#fafafa; font-weight:bold;">해체정리</td><td style="text-align:left; padding:8px;">{format_text(ra_risk_5)}</td></tr>
+                <tr><td style="background-color:#fafafa; font-weight:bold;">형틀</td><td style="text-align:left; padding:8px;">{format_text(ra_risk_6)}</td></tr>
+            </table>
+
+            <table class="gapji-table" style="background-color: white;">
+                <tr>
+                    <td class="gapji-header" style="width:15%;">근로자<br>의견청취</td>
+                    <td style="text-align:left; padding:10px; background-color:#fffdf7;">{format_text(ra_worker_opinion)}</td>
+                </tr>
+                <tr>
+                    <td class="gapji-header">관리감독자<br>의견</td>
+                    <td style="text-align:left; padding:10px;">{ra_manager_opinion}</td>
+                </tr>
+                <tr>
+                    <td class="gapji-header">안전관리자<br>의견</td>
+                    <td style="text-align:left; padding:10px;">{ra_safety_opinion}</td>
+                </tr>
+                <tr>
+                    <td class="gapji-header">책임자총평</td>
+                    <td style="text-align:left; padding:10px; font-weight:bold; color:#b91c1c;">{ra_director_opinion}</td>
+                </tr>
+            </table>
+            <div style="text-align:right; font-size:12px; font-weight:bold; margin-top:15px; color:#555;">신건설주식회사</div>
         </div>
         """
         
         photo_tags = process_images_for_html(ra_photos_meeting if 'ra_photos_meeting' in locals() and ra_photos_meeting else [])
-        
         photo_grid_html = ""
         if photo_tags:
-            photo_grid_html += '<table class="gapji-table" style="background-color: white; margin-top:15px;"><tr><td colspan="2" class="gapji-header" style="font-size: 18px;">【사진대지 - 위험성평가 전파교육】</td></tr>'
+            photo_grid_html += '<table class="gapji-table" style="background-color: white; margin-top:15px;"><tr><td colspan="2" class="gapji-header" style="font-size: 16px; padding:10px;">【사진대지 - 위험성평가 전파교육】</td></tr>'
             for i in range(0, len(photo_tags), 2):
                 img1 = photo_tags[i]
-                img2 = photo_tags[i+1] if i+1 < len(photo_tags) else ""
+                img2 = photo_tags[i+1] if i+1 < len(photo_tags) else '<div class="photo-blank">대기</div>'
                 photo_grid_html += f'<tr><td style="width:50%; padding:10px;">{img1}</td><td style="width:50%; padding:10px;">{img2}</td></tr>'
             photo_grid_html += '</table>'
         else:
-            photo_grid_html += '<div style="text-align:center; padding:20px; color:gray; border: 1px dashed #ccc; margin-top:10px;">첨부된 사진이 없습니다. 좌측에서 사진을 업로드해주세요.</div>'
+            photo_grid_html += '<div style="text-align:center; padding:20px; color:gray; border: 1px dashed #ccc; margin-top:10px; background-color:white;">첨부된 교육 전파 사진이 없습니다. 좌측에서 등록해 주세요.</div>'
 
         st.markdown(ra_html_page1 + photo_grid_html, unsafe_allow_html=True)
         
@@ -216,21 +280,21 @@ if main_menu == "1. 위험성평가":
             ra_standalone_html = f"""
             <!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>위험성평가 회의록</title>
             <style>
-                @page {{ size: A4; margin: 10mm 15mm; }} 
-                body {{ background: #fff; font-family: 'Malgun Gothic', sans-serif; font-size:13px; color:#000; margin:0; padding:0; }} 
-                .gapji-table {{ width: 100%; border-collapse: collapse; border: 2px solid #000; margin-bottom: 20px; }} 
-                .gapji-table th, .gapji-table td {{ border: 1px solid #000; padding: 7px; text-align: center; vertical-align: middle; }} 
+                @page {{ size: A4; margin: 12mm 15mm; }} 
+                body {{ background: #fff; font-family: 'Malgun Gothic', sans-serif; font-size:12px; color:#000; margin:0; padding:0; }} 
+                .gapji-table {{ width: 100%; border-collapse: collapse; border: 2px solid #000; margin-bottom: 15px; }} 
+                .gapji-table th, .gapji-table td {{ border: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle; }} 
                 .gapji-header {{ background-color: #f0f0f0; font-weight: bold; }}
                 .page-break {{ page-break-before: always; }}
             </style>
             </head><body onload="window.print()">
-            {ra_html_page1.replace('border: 2px solid #4CAF50; border-radius: 8px;', '').replace('background-color: white; padding: 15px;', '')}
+            {ra_html_page1}
             <div class="page-break"></div>
             {photo_grid_html}
             </body></html>
             """
             ra_b64 = base64.b64encode(ra_standalone_html.encode('utf-8')).decode('utf-8')
-            st.markdown(f'<div style="text-align:center; margin-top:20px;"><a href="data:text/html;base64,{ra_b64}" download="위험성평가_회의록_{ra_meeting_date.strftime("%y%m%d")}.html" style="padding:15px 30px; background-color:#1E4D6B; color:white; text-decoration:none; border-radius:8px; font-weight:bold; font-size:16px;">🖨️ A4 인쇄용 양식 다운로드</a></div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="text-align:center; margin-top:20px;"><a href="data:text/html;base64,{ra_b64}" download="위험성평가_회의록_{ra_meeting_date.strftime("%Y%m%d")}.html" style="padding:12px 25px; background-color:#1E4D6B; color:white; text-decoration:none; border-radius:6px; font-weight:bold; font-size:14px;">🖨️ 현장제출용 A4 양식 출력하기</a></div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # [모듈 3] 사고보고서 - 서브메뉴 분기
@@ -259,7 +323,7 @@ elif main_menu == "3. 사고보고서":
                 
                 p1, p2 = st.columns(2)
                 p_name_ko = p1.text_input("피재자 성명", value="나형들")
-                p_birth_code = p2.text_input("주민번호 앞자리", value="781231")
+                p_birth_code = p2.text_input("생년월일 (6자리)", value="781231")
                 p3, p4 = st.columns(2)
                 p_team = p3.text_input("소속/직급", value="김개똥팀")
                 p_gongjong = p4.text_input("직종", value="형틀공")
@@ -277,7 +341,7 @@ elif main_menu == "3. 사고보고서":
                         "ID": new_id, "날짜": formatted_date_time, "현장명": site_name, "사고장소": accident_place,
                         "사고경위": auto_detail, "작업환경": work_detail, "사고원인": accident_cause,
                         "사고유형": accident_type, "상해피해정도": injury_degree, "피재자": p_name_ko,
-                        "주민번호_앞자리": p_birth_code, "소속_직급": p_team, "직종": p_gongjong,
+                        "생년월일": p_birth_code, "소속_직급": p_team, "직종": p_gongjong,
                         "채용일자": str(p_hire_date), "국적_체류코드": p_nation,
                         **{app: "대기" for app in approvers},
                         "사고보고서_제출": "O", "재발방지대책_제출": "X", "산재표_제출": "X", "합의서_작성": "X", "진행상태": "진행중"
@@ -415,13 +479,12 @@ elif main_menu == "3. 사고보고서":
                     f'<tr><td class="gapji-header" style="width:12%;">현장명</td><td colspan="3" style="width:38%; font-weight:bold;">{row.get("현장명", "")}</td><td class="gapji-header" style="width:12%;">사고장소</td><td colspan="3" style="width:38%;">{row.get("사고장소", "")}</td></tr>',
                     f'<tr><td class="gapji-header" style="height:60px;">사고경위</td><td colspan="7" style="text-align:left; padding:8px;">{row.get("사고경위", "")}</td></tr>',
                     f'<tr><td class="gapji-header">사고원인</td><td colspan="7" style="text-align:left; padding:8px;">{row.get("사고원인", "")}</td></tr>',
-                    f'<tr><td rowspan="3" class="gapji-header">피재자</td><td class="gapji-header">성명</td><td>{row.get("피재자", "")}</td><td class="gapji-header">주민번호</td><td>{row.get("주민번호_앞자리", "")}</td><td class="gapji-header">채용일자</td><td colspan="2">{row.get("채용일자", "")}</td></tr>',
+                    f'<tr><td rowspan="3" class="gapji-header">피재자</td><td class="gapji-header">성명</td><td>{row.get("피재자", "")}</td><td class="gapji-header">생년월일</td><td>{row.get("생년월일", "")}</td><td class="gapji-header">채용일자</td><td colspan="2">{row.get("채용일자", "")}</td></tr>',
                     f'<tr><td class="gapji-header">소속/직급</td><td>{row.get("소속_직급", "")}</td><td class="gapji-header">직종</td><td>{row.get("직종", "")}</td><td class="gapji-header">채용기간</td><td colspan="2">상세관리</td></tr>',
                     f'<tr><td class="gapji-header">주소</td><td colspan="3">사내 대장 전산 확인</td><td class="gapji-header">국적</td><td colspan="2">{row.get("국적_체류코드", "")}</td></tr>',
                     f'<tr><td rowspan="3" class="gapji-header">재발방지</td><td class="gapji-header">기술적</td><td colspan="6" style="text-align:left; padding-left:5px;">{row.get("기술적대책", "")}</td></tr>',
                     f'<tr><td class="gapji-header">관리적</td><td colspan="6" style="text-align:left; padding-left:5px;">{row.get("관리적대책", "")}</td></tr>',
                     f'<tr><td class="gapji-header">교육적</td><td colspan="6" style="text-align:left; padding-left:5px;">{row.get("교육적대책", "")}</td></tr>',
-                    
                     '<tr><td colspan="8" style="padding:0; border:none;">',
                     '<table style="width:100%; border-collapse:collapse; text-align:center; margin-top:10px; margin-bottom:10px;">',
                     '<tr><td colspan="5" class="gapji-header">사고 서류 제출 현황</td></tr>',
