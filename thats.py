@@ -8,13 +8,9 @@ import re
 import textwrap
 
 # ==========================================
-# 1. 페이지 기본 설정 및 세션 상태 초기화
+# 1. 페이지 기본 설정 및 로그인/세션 상태 관리
 # ==========================================
 st.set_page_config(page_title="신건설 통합 관리 시스템", layout="wide", initial_sidebar_state="expanded")
-
-# 로그인 및 결재 모의 시스템을 위한 세션 상태 정의
-if "logged_in_user" not in st.session_state:
-    st.session_state["logged_in_user"] = "현장 작성자"
 
 # 위험성평가 가상 로그인 결재선 초기화
 if "ra_signs" not in st.session_state:
@@ -59,7 +55,7 @@ st.markdown("""
 .gapji-table th, .gapji-table td { border: 1px solid #000 !important; padding: 6px !important; text-align: center; vertical-align: middle; }
 .gapji-header { background-color: #f0f0f0 !important; font-weight: bold; }
 .grid-photo { width: 100%; height: 400px; object-fit: contain; background-color: #fafafa; display: block; margin: 0 auto; }
-.photo-blank { height: 350px; display: flex; justify-content: center; align-items: center; color: #999; font-size: 13px; background-color: #fafafa; border: 1px dashed #ccc; }
+.photo-blank { height: 400px; display: flex; justify-content: center; align-items: center; color: #999; font-size: 13px; background-color: #fafafa; }
 div[data-testid="stForm"] { padding: 1rem; border: 2px solid #ddd; border-radius: 8px;}
 .stTextInput, .stDateInput, .stTimeInput, .stSelectbox, .stTextArea { margin-bottom: -10px; }
 .page-break { page-break-before: always; }
@@ -91,18 +87,36 @@ def get_sign(val):
     return ""
 
 # ==========================================
-# 4. 왼쪽 사이드바 및 가상 로그인 제어 시스템
+# 4. 왼쪽 사이드바 (영문 ID 전용 로그인 시스템 연동)
 # ==========================================
 with st.sidebar:
     st.title("🏗️ 신건설 통합관리 시스템")
     st.markdown("---")
     
-    # [요구사항 반영] 담당자별 가상 아이디 로그인 시스템 연동
-    st.subheader("🔐 전사 로그인 계정 전환")
-    current_user = st.selectbox("현재 접속 계정", ["현장 작성자(전성배)", "관리감독자(황감독)", "안전관리자(박정원)", "현장소장(장도호)", "본사 관리자"])
-    st.session_state["logged_in_user"] = current_user
-    st.caption(f"접속 권한: {st.session_state['logged_in_user']}")
+    # [요구사항 반영] 한글 ID 제거, 순수 영문 ID 식별 제어 엔진
+    st.subheader("🔐 시스템 보안 로그인")
+    user_id_input = st.text_input("접속 ID 입력 (공백 시 게스트)", value="", type="password").strip().lower()
     
+    if user_id_input == "writer":
+        user_role = "현장 작성자"
+        st.success("🟢 권한: 현장 작성자(전성배)")
+    elif user_id_input == "manager":
+        user_role = "관리감독자"
+        st.success("🟢 권한: 관리감독자(황승훈)")
+    elif user_id_input == "safety":
+        user_role = "안전관리자"
+        st.success("🟢 권한: 안전관리자(박정원)")
+    elif user_id_input == "director":
+        user_role = "현장소장"
+        st.success("🟢 권한: 현장소장(장도호)")
+    elif user_id_input == "admin":
+        user_role = "본사 관리자"
+        st.success("👑 권한: 본사 총괄 관리자")
+    else:
+        user_role = "게스트"
+        st.warning("⚪ 권한: 게스트 (읽기 전용)")
+        st.caption("※ 좌측 상단에 지정된 영문 ID를 입력하십시오.")
+        
     st.markdown("---")
     main_menu = st.radio("메뉴 선택", ["1. 위험성평가", "2. TBM", "3. 사고보고서", "4. 안전보건교육", "5. 작업표준화"], index=0)
     
@@ -114,11 +128,11 @@ with st.sidebar:
         )
 
 # ==========================================
-# 5. 중앙 메인 화면 로직
+# 5. 중앙 메인 화면 제어 엔진
 # ==========================================
 
 # ---------------------------------------------------------
-# [모듈 1] 위험성평가 (기획안 요구사항 100% 일치 고도화)
+# [모듈 1] 위험성평가 (영문 로그인 기반 서명 연동)
 # ---------------------------------------------------------
 if main_menu == "1. 위험성평가":
     st.header("📝 위험성평가 회의록 및 사진 등록")
@@ -144,28 +158,30 @@ if main_menu == "1. 위험성평가":
             
             ra_writer = st.text_input("작성자 (직접입력)", value="전성배")
             
-            # [요구사항 반영] 로그인 아이디 기반 결재 버튼 매핑 시스템
-            st.markdown("**🖋️ 전자결재 서명 란 (접속 계정 연동)**")
-            if st.session_state["logged_in_user"] == "관리감독자(황감독)":
-                if st.form_submit_button("▶️ 관리감독자 결재 확인 승인"):
+            # [요구사항 반영] 영문 로그인 계정 기반 연동 결재 시스템
+            st.markdown("**🖋️ 전자결재 서명 란**")
+            if user_role == "관리감독자":
+                if st.form_submit_button("▶️ 관리감독자(황승훈) 결재 서명 승인"):
                     st.session_state["ra_signs"]["관리감독자"] = "황승훈"
-            elif st.session_state["logged_in_user"] == "안전관리자(박정원)":
-                if st.form_submit_button("▶️ 안전관리자 결재 확인 승인"):
+            elif user_role == "안전관리자":
+                if st.form_submit_button("▶️ 안전관리자(박정원) 결재 서명 승인"):
                     st.session_state["ra_signs"]["안전관리자"] = "박정원"
-            elif st.session_state["logged_in_user"] == "현장소장(장도호)":
-                if st.form_submit_button("▶️ 현장소장 최종 결재 승인"):
+            elif user_role == "현장소장":
+                if st.form_submit_button("▶️ 현장소장(장도호) 최종 결재 승인"):
                     st.session_state["ra_signs"]["현장소장"] = "장도호"
+            elif user_role == "게스트":
+                st.error("🔒 게스트 권한 상태입니다. 서명을 입력하려면 영문 전용 ID로 로그인하십시오.")
             else:
-                st.info("💡 서명 권한자 계정으로 전환하면 승인 버튼이 활성화됩니다.")
+                st.info(f"ℹ️ 현재 권한({user_role})은 서명 대상 직책이 아닙니다.")
 
-            if st.form_submit_button("❌ 위험성평가 서명 초기화"):
+            if user_role != "게스트" and st.form_submit_button("❌ 위험성평가 서명 일괄 초기화"):
                 st.session_state["ra_signs"] = {"작성": "전성배", "관리감독자": "", "안전관리자": "", "현장소장": ""}
             
             default_attendees = "소장 장도호, 품질 김정곤, 공사 조상호, 철근 오종훈, 형틀 김을탁, 형틀 강태웅, 형틀 박나경, 형틀 김범수, 타설 김선열, 알폼 김강호, 공무 한승훈, 공무 김현근, 안전 박정원, 안전 전성배, 해체 황호근"
             ra_attendees_list = st.text_area("참석자 명단 (반점 ','으로 구분)", value=default_attendees, height=100)
             
             st.markdown("---")
-            st.markdown("**2. 주요위험 관리 POINT (6대 서식 일치화)**")
+            st.markdown("**2. 주요위험 관리 POINT**")
             ra_agenda = st.text_input("주요안건", value="사전 유해.위험 점검, 논의 / 고위험 작업, 상습 부적합 사항")
             
             ra_risk_1 = st.text_area("1. 시스템", value="비계에 벽이음 가새 미설치 작업 중 붕괴 위험\nㄴ 설치 작업시 벽이음 선행 후 작업 실시 및 규정에 맞는 간격으로 설치 할 것", height=65)
@@ -188,7 +204,12 @@ if main_menu == "1. 위험성평가":
             st.markdown("**4. 사진대지 첨부**")
             ra_photos_meeting = st.file_uploader("회의 및 교육 사진 업로드", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
             
-            ra_submitted = st.form_submit_button("🖨️ 회의록 최종 양식 출력 데이터 가공", type="primary", use_container_width=True)
+            # [요구사항 반영] 게스트 입력 전면 봉쇄
+            if user_role == "게스트":
+                st.form_submit_button("🔒 게스트 작성 권한 차단됨", disabled=True, use_container_width=True)
+                ra_submitted = False
+            else:
+                ra_submitted = st.form_submit_button("💾 서명 및 위험성평가 양식 생성", type="primary", use_container_width=True)
 
     with col_preview:
         st.subheader("🔸 위험성평가 회의록 (실제 양식 매칭 뷰)")
@@ -207,7 +228,6 @@ if main_menu == "1. 위험성평가":
                 tds.append('<td style="width:20%;"></td>')
             attendee_rows_html += f"<tr>{''.join(tds)}</tr>"
 
-        # [요구사항 반영] 로그인 결재 완료 시 표 내부에 [확인] signed 마크 강제 바인딩
         sign_html_manager = "<b>[확인]<br><span style='font-size:8px; color:gray;'>signed</span></b>" if st.session_state["ra_signs"]["관리감독자"] else ""
         sign_html_safety = "<b>[확인]<br><span style='font-size:8px; color:gray;'>signed</span></b>" if st.session_state["ra_signs"]["안전관리자"] else ""
         sign_html_director = "<b>[확인]<br><span style='font-size:8px; color:gray;'>signed</span></b>" if st.session_state["ra_signs"]["현장소장"] else ""
@@ -309,7 +329,7 @@ if main_menu == "1. 위험성평가":
         clean_render_html = re.sub(r'>\s+<', '><', ra_html_page1 + photo_grid_html)
         st.markdown(clean_render_html, unsafe_allow_html=True)
         
-        if ra_submitted:
+        if user_role != "게스트" and ra_submitted:
             ra_standalone_html = f"""
             <!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>위험성평가 회의록</title>
             <style>
@@ -326,10 +346,10 @@ if main_menu == "1. 위험성평가":
             </head><body onload="window.print()">{ra_html_page1}<br>{photo_grid_html}</body></html>
             """
             ra_b64 = base64.b64encode(ra_standalone_html.encode('utf-8')).decode('utf-8')
-            st.markdown(f'<div style="text-align:center; margin-top:20px;"><a href="data:text/html;base64,{ra_b64}" download="위험성평가_회의록_{ra_meeting_date.strftime("%Y%m%d")}.html" style="padding:12px 25px; background-color:#1E4D6B; color:white; text-decoration:none; border-radius:6px; font-weight:bold; font-size:14px;">🖨️ 현장제출용 A4 양식 출력하기</a></div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="text-align:center; margin-top:20px;"><a href="data:text/html;base64,{ra_b64}" download="위험성평가_회의록_{ra_meeting_date.strftime("%Y%m%d")}.html" style="padding:12px 25px; background-color:#1E4D6B; color:white; text-decoration:none; border-radius:8px; font-weight:bold; font-size:14px;">🖨️ 현장제출용 A4 양식 출력하기</a></div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# [모듈 3] 사고보고서 (기존 원본 로직 100% 동일 가동 및 4단계 고도화)
+# [모듈 3] 사고보고서 (4단계 대장 전면 연동)
 # ---------------------------------------------------------
 elif main_menu == "3. 사고보고서":
     
@@ -361,25 +381,30 @@ elif main_menu == "3. 사고보고서":
                 p_hire_date = p5.date_input("채용일자", value=date(2024, 5, 2))
                 p_nation = p6.text_input("국적/체류코드", value="베트남 / F-6")
 
-                # 요구사항 반영: '조사', '소속', '피재자', '요인에 의하여' 구문 탈락 조치
                 formatted_date_time = f"{accident_date.strftime('%y.%m.%d')} {accident_time.strftime('%H:%M')}분경"
                 auto_detail = f"{formatted_date_time} / {accident_place}에서 / {p_team} {p_gongjong} {p_name_ko}({p_birth_code})이(가) {work_detail} 중, {accident_cause} 발생하여 [{accident_type}] 사고가 발생함."
                 
-                submitted = st.form_submit_button("💾 1단계: 사고보고서 등록", type="primary", use_container_width=True)
-                if submitted:
-                    new_id = int(df["ID"].max()) + 1 if not df.empty and pd.to_numeric(df["ID"], errors='coerce').notna().any() else 1
-                    new_row = pd.DataFrame([{
-                        "ID": new_id, "날짜": formatted_date_time, "현장명": site_name, "사고장소": accident_place,
-                        "사고경위": auto_detail, "작업환경": work_detail, "사고원인": accident_cause,
-                        "사고유형": accident_type, "상해피해정도": injury_degree, "피재자": p_name_ko,
-                        "생년월일": p_birth_code, "소속_직급": p_team, "직종": p_gongjong,
-                        "채용일자": str(p_hire_date), "국적_체류코드": p_nation,
-                        **{app: "대기" for app in approvers},
-                        "사고보고서_제출": "O", "재발방지대책_제출": "X", "산재표_제출": "X", "합의서_작성": "X", "진행상태": "진행중"
-                    }])
-                    conn.update(data=pd.concat([df, new_row], ignore_index=True))
-                    st.success("✅ 사고보고서 제출 완료! 상태가 '진행중'으로 등록되었습니다.")
-                    st.rerun()
+                # [요구사항 반영] 게스트 및 비인가 제어
+                if user_role == "게스트":
+                    st.form_submit_button("🔒 게스트 작성 권한 차단됨", disabled=True, use_container_width=True)
+                elif user_role != "현장 작성자" and user_role != "본사 관리자":
+                    st.form_submit_button(f"🔒 {user_role} 권한 작성 불가 (writer 계정 전용)", disabled=True, use_container_width=True)
+                else:
+                    submitted = st.form_submit_button("💾 1단계: 사고보고서 등록", type="primary", use_container_width=True)
+                    if submitted:
+                        new_id = int(df["ID"].max()) + 1 if not df.empty and pd.to_numeric(df["ID"], errors='coerce').notna().any() else 1
+                        new_row = pd.DataFrame([{
+                            "ID": new_id, "날짜": formatted_date_time, "현장명": site_name, "사고장소": accident_place,
+                            "사고경위": auto_detail, "작업환경": work_detail, "사고원인": accident_cause,
+                            "사고유형": accident_type, "상해피해정도": injury_degree, "피재자": p_name_ko,
+                            "생년월일": p_birth_code, "소속_직급": p_team, "직종": p_gongjong,
+                            "채용일자": str(p_hire_date), "국적_체류코드": p_nation,
+                            **{app: "대기" for app in approvers},
+                            "사고보고서_제출": "O", "재발방지대책_제출": "X", "산재표_제출": "X", "합의서_작성": "X", "진행상태": "진행중"
+                        }])
+                        conn.update(data=pd.concat([df, new_row], ignore_index=True))
+                        st.success("✅ 사고보고서 제출 완료! 상태가 '진행중'으로 등록되었습니다.")
+                        st.rerun()
 
         with col_preview:
             st.subheader("🔸 결과 확인창")
@@ -405,18 +430,17 @@ elif main_menu == "3. 사고보고서":
     elif sub_menu == "📎 후속 서류 업데이트":
         st.header("📎 후속 서류 및 사진 제출")
         if df.empty:
-            st.warning("등록된 사고 기록이 없습니다.")
+            st.warning("등록된 사고 관리 대장이 존재하지 않습니다.")
         else:
-            # [요구사항 반영] 사진 업로드 행위 감지 및 O/X 교체 트리거 엔진
             def update_status(idx, col_name, val):
                 df.loc[idx, col_name] = val
                 c1 = df.loc[idx, "사고보고서_제출"] == "O"
-                c2 = df.loc[idx, "재발방지대책_제출"] != "X"
-                c3 = df.loc[idx, "산재표_제출"] != "X"
-                c4 = df.loc[idx, "합의서_작성"] in ["O", "N/A"] or df.loc[idx, "합의서_작성"] != "X"
+                c2 = df.loc[idx, "재발방지대책_제출"] == "O"
+                c3 = df.loc[idx, "산재표_제출"] == "O"
+                c4 = df.loc[idx, "합의서_작성"] in ["O", "N/A"]
                 df.loc[idx, "진행상태"] = "종결" if (c1 and c2 and c3 and c4) else "진행중"
                 conn.update(data=df)
-                st.toast(f"✅ 대장 관리 인덱스 내 [{col_name}] 상태 업데이트 완료!")
+                st.toast(f"✅ 대장 현황 내 [{col_name}] 상태 동기화 완료!")
 
             select_idx = st.selectbox("업데이트할 사고 건을 선택하세요", df.index, format_func=lambda x: f"[{df.loc[x, 'ID']}] {df.loc[x, '현장명']} - {df.loc[x, '피재자']} ({df.loc[x, '진행상태']})")
             row = df.loc[select_idx]
@@ -439,61 +463,64 @@ elif main_menu == "3. 사고보고서":
                 edu = st.text_input("교육적 대책", value=row.get('교육적대책', ''))
                 file1 = st.file_uploader("재발방지대책 관련 사진 업로드", type=["jpg", "png", "jpeg"])
                 
-                if st.button("재발방지대책 제출 (완료 처리)"):
-                    df.loc[select_idx, "기술적대책"] = tech
-                    df.loc[select_idx, "관리적대책"] = admin
-                    df.loc[select_idx, "교육적대책"] = edu
-                    # 파일이 올라오면 파일명을 입력하고 완료(O)로 마킹
-                    val_str = file1.name if file1 else "O"
-                    update_status(select_idx, "재발방지대책_제출", val_str)
-                    st.rerun()
+                if user_role == "게스트":
+                    st.error("🔒 게스트 권한 상태에서는 추가 서류 승인이 차단됩니다.")
+                else:
+                    if st.button("재발방지대책 제출 (완료 처리)"):
+                        df.loc[select_idx, "기술적대책"] = tech
+                        df.loc[select_idx, "관리적대책"] = admin
+                        df.loc[select_idx, "교육적대책"] = edu
+                        update_status(select_idx, "재발방지대책_제출", "O")
+                        st.rerun()
 
             with tab2:
                 st.markdown("**산재표 제출 (사진업로드)**")
                 file2 = st.file_uploader("산재표 원본 사진 업로드", type=["jpg", "png", "jpeg"])
-                if st.button("산재표 제출 확정 처리"):
-                    val_str = file2.name if file2 else "O"
-                    update_status(select_idx, "산재표_제출", val_str)
-                    st.rerun()
+                if user_role == "게스트":
+                    st.error("🔒 게스트 권한 상태에서는 사진을 제출할 수 없습니다.")
+                else:
+                    if st.button("산재표 제출 확정 처리"):
+                        update_status(select_idx, "산재표_제출", "O")
+                        st.rerun()
 
             with tab3:
                 st.markdown("**합의서 작성 (사진업로드 또는 N/A 처리)**")
                 file3 = st.file_uploader("합의서 원본 사진 업로드", type=["jpg", "png", "jpeg"])
                 c_btn1, c_btn2 = st.columns(2)
-                if c_btn1.button("합의서 서명 완료 제출"):
-                    val_str = file3.name if file3 else "O"
-                    update_status(select_idx, "합의서_작성", val_str)
-                    st.rerun()
-                if c_btn2.button("N/A 처리 (본사 전용 예외 승인 권한)", type="secondary"):
-                    if st.session_state["logged_in_user"] == "본사 관리자":
-                        update_status(select_idx, "합의서_작성", "N/A")
+                
+                if user_role == "게스트":
+                    st.error("🔒 게스트 권한 상태에서는 합의서 작성이 전면 차단됩니다.")
+                else:
+                    if c_btn1.button("합의서 서명 완료 제출", use_container_width=True):
+                        update_status(select_idx, "합의서_작성", "O")
                         st.rerun()
-                    else:
-                        st.error("❌ 경미사고 N/A 면제 처리는 '본사 관리자' 계정 상태에서만 집행 가능합니다.")
+                    if c_btn2.button("N/A 면제 처리 (본사 승인 권한)", type="secondary", use_container_width=True):
+                        # [요구사항 반영] N/A 처리는 오직 마스터 권한인 '본사 관리자'만 집행 가능
+                        if user_role == "본사 관리자":
+                            update_status(select_idx, "합의서_작성", "N/A")
+                            st.rerun()
+                        else:
+                            st.error("❌ 합의서 면제(N/A) 처리는 오직 '본사 관리자' 권한 상태에서만 실행할 수 있습니다.")
 
     elif sub_menu == "📊 통합 DB (구글시트 뷰어)":
         st.header("📊 전사 사고 대장 통합 뷰어")
         st.caption("구글 스프레드시트에 접속할 필요 없이, 웹에서 전체 데이터를 확인하고 직접 수정(결재)할 수 있습니다.")
         
-        edited_df = st.data_editor(df, num_rows="dynamic", use_container_width=True, height=500, hide_index=True)
+        # [요구사항 반영] 게스트일 경우 에디터 수정 전면 차단(disabled=True)
+        is_disabled = True if user_role == "게스트" else False
+        edited_df = st.data_editor(df, num_rows="dynamic", use_container_width=True, height=500, hide_index=True, disabled=is_disabled)
         
-        if st.button("💾 데이터베이스 직접 저장 (결재 정보 업데이트)", type="primary"):
-            for idx in edited_df.index:
-                d1 = str(edited_df.loc[idx, "사고보고서_제출"]).strip().upper()
-                d2 = str(edited_df.loc[idx, "재발방지대책_제출"]).strip().upper()
-                d3 = str(edited_df.loc[idx, "산재표_제출"]).strip().upper()
-                d4 = str(edited_df.loc[idx, "합의서_작성"]).strip().upper()
+        if user_role == "게스트":
+            st.error("🔒 게스트 권한은 데이터를 조회할 수만 있으며 변경사항 반영은 차단됩니다.")
+        else:
+            if st.button("💾 데이터베이스 직접 저장 (결재 정보 업데이트)", type="primary"):
+                for idx in edited_df.index:
+                    d1, d2, d3, d4 = [str(edited_df.loc[idx, c]).strip().upper() for c in ["사고보고서_제출", "재발방지대책_제출", "산재표_제출", "합의서_작성"]]
+                    edited_df.loc[idx, "진행상태"] = "종결" if (d1=="O" and d2=="O" and d3=="O" and d4 in ["O", "N/A"]) else "진행중"
                 
-                c1 = d1 == "O"
-                c2 = d2 != "X" and d2 != ""
-                c3 = d3 != "X" and d3 != ""
-                c4 = d4 in ["O", "N/A"] or (d4 != "X" and d4 != "")
-                
-                edited_df.loc[idx, "진행상태"] = "종결" if (c1 and c2 and c3 and c4) else "진행중"
-            
-            conn.update(data=edited_df)
-            st.success("✅ 구글 스프레드시트에 동기화 완료!")
-            st.rerun()
+                conn.update(data=edited_df)
+                st.success("✅ 구글 스프레드시트에 동기화 완료!")
+                st.rerun()
 
     elif sub_menu == "🖨️ 최종 보고서 출력":
         st.header("🖨️ 상황도 작성 및 보고서 최종 인쇄")
@@ -536,7 +563,7 @@ elif main_menu == "3. 사고보고서":
                     '<table style="width:100%; border-collapse:collapse; text-align:center; margin-top:10px; margin-bottom:10px; table-layout:fixed;">',
                     '<tr><td colspan="5" class="gapji-header">사고 서류 제출 현황</td></tr>',
                     '<tr><td class="gapji-header">사고보고서 제출</td><td class="gapji-header">재발방지대책</td><td class="gapji-header">산재표 제출</td><td class="gapji-header">합의서 작성</td><td class="gapji-header">진행상태</td></tr>',
-                    f'<tr><td>{row.get("사고보고서_제출", "O")}</td><td>{"O" if row.get("재발방지대책_제출", "X") != "X" else "X"}</td><td>{"O" if row.get("산재표_제출", "X") != "X" else "X"}</td><td>{row.get("합의서_작성", "X")}</td><td style="font-weight:bold; color:{s_color};">{row.get("진행상태", "진행중")}</td></tr>',
+                    f'<tr><td>{row.get("사고보고서_제출", "O")}</td><td>{row.get("재발방지대책_제출", "X")}</td><td>{row.get("산재표_제출", "X")}</td><td>{row.get("합의서_작성", "X")}</td><td style="font-weight:bold; color:{s_color};">{row.get("진행상태", "진행중")}</td></tr>',
                     '</table></td></tr></table>'
                 ])
 
