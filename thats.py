@@ -87,28 +87,28 @@ def get_sign(val):
     return ""
 
 # ==========================================
-# 4. 왼쪽 사이드바 (텍스트 표출 로그인 제어부)
+# 4. 왼쪽 사이드바 (영문 ID 전용 로그인 및 실명 제거 반영)
 # ==========================================
 with st.sidebar:
     st.title("🏗️ 신건설 통합관리 시스템")
     st.markdown("---")
     
     st.subheader("🔐 시스템 보안 로그인")
-    # [수정] type="password" 속성을 제거하여 입력하는 영문 ID가 화면에 그대로 노출되도록 변경
     user_id_input = st.text_input("접속 ID 입력 (공백 시 게스트)", value="").strip().lower()
     
+    # [수정] 안내 문구에서 실명 명사를 전면 제거하고 직책 권한 명칭만 단독 노출
     if user_id_input == "writer":
         user_role = "현장 작성자"
-        st.success("🟢 권한: 현장 작성자(전성배)")
+        st.success("🟢 권한: 현장 작성자")
     elif user_id_input == "manager":
         user_role = "관리감독자"
-        st.success("🟢 권한: 관리감독자(황승훈)")
+        st.success("🟢 권한: 관리감독자")
     elif user_id_input == "safety":
         user_role = "안전관리자"
-        st.success("🟢 권한: 안전관리자(박정원)")
+        st.success("🟢 권한: 안전관리자")
     elif user_id_input == "director":
         user_role = "현장소장"
-        st.success("🟢 권한: 현장소장(장도호)")
+        st.success("🟢 권한: 현장소장")
     elif user_id_input == "construction":
         user_role = "공사/공무 담당"
         st.success("🟢 권한: 공사/공무 담당")
@@ -167,13 +167,13 @@ if main_menu == "1. 위험성평가":
             
             st.markdown("**🖋️ 전자결재 서명 란**")
             if user_role == "관리감독자":
-                if st.form_submit_button("▶️ 관리감독자(황승훈) 결재 서명 승인"):
+                if st.form_submit_button("▶️ 관리감독자 결재 서명 승인"):
                     st.session_state["ra_signs"]["관리감독자"] = "황승훈"
             elif user_role == "안전관리자":
-                if st.form_submit_button("▶️ 안전관리자(박정원) 결재 서명 승인"):
+                if st.form_submit_button("▶️ 안전관리자 결재 서명 승인"):
                     st.session_state["ra_signs"]["안전관리자"] = "박정원"
             elif user_role == "현장소장":
-                if st.form_submit_button("▶️ 현장소장(장도호) 최종 결재 승인"):
+                if st.form_submit_button("▶️ 현장소장 최종 결재 승인"):
                     st.session_state["ra_signs"]["현장소장"] = "장도호"
             elif user_role == "게스트":
                 st.error("🔒 게스트 권한 상태입니다. 서명을 입력하려면 전용 영문 ID로 로그인하십시오.")
