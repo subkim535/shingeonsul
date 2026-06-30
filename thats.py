@@ -66,17 +66,18 @@ def process_images_for_html(uploaded_files, height="200px"):
             tags.append(f'<img src="data:image/jpeg;base64,{encoded}" style="width:100%; height:{height}; object-fit:contain; background-color:#fafafa;">')
     return tags
 
+# [핵심] 인쇄 시 표의 행(tr)이 절반으로 갈라지는 것을 막기 위해 강제 속성 추가
 def build_grid(tags, label):
     clean_label = label.replace('<br>', ' ')
-    if not tags: return f'<tr><td class="gapji-header" style="width:20%;">{label}</td><td style="padding:6px; width:80%;"><div class="photo-blank">{clean_label} 미등록</div></td></tr>'
+    if not tags: return f'<tr style="page-break-inside: avoid; break-inside: avoid;"><td class="gapji-header" style="width:20%;">{label}</td><td style="padding:6px; width:80%;"><div class="photo-blank">{clean_label} 미등록</div></td></tr>'
     inner = '<table width="100%" border="0" cellpadding="0" cellspacing="0" style="table-layout:fixed; height:100%;">'
     for i in range((len(tags) + 1) // 2):
         c1 = tags[i*2]
         c2 = tags[i*2+1] if (i*2+1) < len(tags) else '<div class="photo-blank">대기</div>'
         bb = 'border-bottom: 1px solid #000;' if i < ((len(tags)+1)//2 - 1) else ''
-        inner += f'<tr><td style="width:50%; border-right:1px solid #000; {bb} padding:6px;">{c1}</td><td style="width:50%; {bb} padding:6px;">{c2}</td></tr>'
+        inner += f'<tr style="page-break-inside: avoid; break-inside: avoid;"><td style="width:50%; border-right:1px solid #000; {bb} padding:6px;">{c1}</td><td style="width:50%; {bb} padding:6px;">{c2}</td></tr>'
     inner += '</table>'
-    return f'<tr><td class="gapji-header" style="width:20%;">{label}</td><td style="padding:0; width:80%;">{inner}</td></tr>'
+    return f'<tr style="page-break-inside: avoid; break-inside: avoid;"><td class="gapji-header" style="width:20%;">{label}</td><td style="padding:0; width:80%;">{inner}</td></tr>'
 
 def get_sign(val):
     if str(val).strip() in ["승인", "확인"]: return "<b>[확인]<br><span style='font-size:9px; color:gray;'>signed</span></b>"
@@ -270,11 +271,11 @@ if main_menu == "1. 위험성평가":
         photo_tags = process_images_for_html(ra_photos_meeting if 'ra_photos_meeting' in locals() and ra_photos_meeting else [])
         photo_grid_html = ""
         if photo_tags:
-            photo_grid_html += '<table class="gapji-table" style="background-color: white; margin-top:15px;"><tr><td colspan="2" class="gapji-header" style="font-size: 16px; padding:10px;">【사진대지 - 위험성평가 전파교육】</td></tr>'
+            photo_grid_html += '<table class="gapji-table" style="background-color: white; margin-top:15px; page-break-inside: auto; break-inside: auto;"><tr><td colspan="2" class="gapji-header" style="font-size: 16px; padding:10px;">【사진대지 - 위험성평가 전파교육】</td></tr>'
             for i in range(0, len(photo_tags), 2):
                 img1 = photo_tags[i]
                 img2 = photo_tags[i+1] if i+1 < len(photo_tags) else '<div class="photo-blank">대기</div>'
-                photo_grid_html += f'<tr><td style="width:50%; padding:10px;">{img1}</td><td style="width:50%; padding:10px;">{img2}</td></tr>'
+                photo_grid_html += f'<tr style="page-break-inside: avoid; break-inside: avoid;"><td style="width:50%; padding:10px;">{img1}</td><td style="width:50%; padding:10px;">{img2}</td></tr>'
             photo_grid_html += '</table>'
         else:
             photo_grid_html += '<div style="text-align:center; padding:20px; color:gray; border: 1px dashed #ccc; margin-top:10px; background-color:white;">첨부된 교육 전파 사진이 없습니다. 좌측에서 등록해 주세요.</div>'
@@ -291,11 +292,14 @@ if main_menu == "1. 위험성평가":
                 .gapji-table {{ width: 100%; border-collapse: collapse; border: 2px solid #000; margin-bottom: 15px; table-layout: fixed; word-break: break-word; }} 
                 .gapji-table th, .gapji-table td {{ border: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle; }} 
                 .gapji-header {{ background-color: #f0f0f0; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }}
-                .page-break {{ page-break-before: always; }}
+                @media print {{
+                    tr, td, th {{ page-break-inside: avoid !important; break-inside: avoid !important; }}
+                    table {{ page-break-inside: auto !important; break-inside: auto !important; }}
+                }}
             </style>
             </head><body onload="window.print()">
             {ra_html_page1}
-            <div class="page-break"></div>
+            <br>
             {photo_grid_html}
             </body></html>
             """
@@ -467,7 +471,6 @@ elif main_menu == "3. 사고보고서":
             if st.button("🖨️ A4 보고서 생성 및 인쇄 다운로드", type="primary", use_container_width=True):
                 s_color = "blue" if row.get('진행상태', '') == "종결" else "red"
 
-                # [수정 적용 완료] 결재란 확대
                 html_1 = ''.join([
                     '<table class="gapji-table" style="width:100%; table-layout:fixed; border-collapse:collapse; border:2px solid #000;">',
                     '<tr><td colspan="8" style="font-size: 26px; font-weight: bold; border:none; padding-bottom: 15px;">재해발생보고서</td></tr>',
@@ -508,6 +511,7 @@ elif main_menu == "3. 사고보고서":
                 final_print_html = re.sub(r'>\s+<', '><', html_1 + "<br><br>" + html_2)
                 st.markdown(final_print_html, unsafe_allow_html=True)
 
+                # [핵심] 미디어 프린트 속성으로 브라우저가 행(tr)을 갈라치기 하는 것을 강제로 금지
                 standalone_html = f"""
                 <!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>보고서 인쇄</title>
                 <style>
@@ -519,6 +523,12 @@ elif main_menu == "3. 사고보고서":
                     .gapji-header {{ background-color: #f0f0f0 !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }} 
                     .grid-photo {{ width: 100%; height: 400px; object-fit: contain; display: block; margin: 0 auto; }}
                     .photo-blank {{ height: 400px; display: flex; justify-content: center; align-items: center; color: #999; font-size: 14px; background-color: #fafafa; }}
+                    
+                    /* 인쇄 시 줄 짤림 방지 핵심 CSS */
+                    @media print {{
+                        tr, td, th {{ page-break-inside: avoid !important; break-inside: avoid !important; }}
+                        table {{ page-break-inside: auto !important; break-inside: auto !important; }}
+                    }}
                 </style>
                 </head><body onload="window.print()">{html_1}<br>{html_2}</body></html>
                 """
