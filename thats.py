@@ -50,8 +50,8 @@ st.markdown("""
 .gapji-table { width: 100% !important; border-collapse: collapse !important; font-family: 'Malgun Gothic', sans-serif; font-size: 13px; color: #000; border: 2px solid #000 !important; margin-bottom: 20px; table-layout: fixed; word-break: break-word; }
 .gapji-table th, .gapji-table td { border: 1px solid #000 !important; padding: 6px !important; text-align: center; vertical-align: middle; }
 .gapji-header { background-color: #f0f0f0 !important; font-weight: bold; }
-.grid-photo { width: 100%; height: 280px; object-fit: contain; background-color: #fafafa; display: block; margin: 0 auto; }
-.photo-blank { height: 280px; display: flex; justify-content: center; align-items: center; color: #999; font-size: 13px; background-color: #fafafa; }
+.grid-photo { width: 100%; height: 400px; object-fit: contain; background-color: #fafafa; display: block; margin: 0 auto; }
+.photo-blank { height: 400px; display: flex; justify-content: center; align-items: center; color: #999; font-size: 13px; background-color: #fafafa; }
 div[data-testid="stForm"] { padding: 1rem; border: 2px solid #ddd; border-radius: 8px;}
 .stTextInput, .stDateInput, .stTimeInput, .stSelectbox, .stTextArea { margin-bottom: -10px; }
 .page-break { page-break-before: always; }
@@ -467,7 +467,6 @@ elif main_menu == "3. 사고보고서":
             if st.button("🖨️ A4 보고서 생성 및 인쇄 다운로드", type="primary", use_container_width=True):
                 s_color = "blue" if row.get('진행상태', '') == "종결" else "red"
 
-                # [핵심 수정] 결재란 표의 픽셀(px) 강제 축소 및 전체 레이아웃 고정
                 html_1 = ''.join([
                     '<table class="gapji-table" style="width:100%; table-layout:fixed; border-collapse:collapse; border:2px solid #000;">',
                     '<tr><td colspan="8" style="font-size: 26px; font-weight: bold; border:none; padding-bottom: 15px;">재해발생보고서</td></tr>',
@@ -497,18 +496,19 @@ elif main_menu == "3. 사고보고서":
                     '</table></td></tr></table>'
                 ])
 
+                # [수정 2] build_grid 호출 시 이미지 높이를 400px로 대폭 키움
                 html_2 = ''.join([
                     '<table class="gapji-table" style="width:100%; table-layout:fixed; border-collapse:collapse; border:2px solid #000;">',
                     '<tr><td colspan="2" style="font-size:26px; font-weight:bold; border:none; padding-bottom:20px;">사고현장 상황도</td></tr>',
-                    build_grid(process_images_for_html(files_situ, "250px"), "사진 1<br>사고상황도"),
-                    build_grid(process_images_for_html(files_injury, "250px"), "사진 2<br>재해정도"),
+                    build_grid(process_images_for_html(files_situ, "400px"), "사진 1<br>사고상황도"),
+                    build_grid(process_images_for_html(files_injury, "400px"), "사진 2<br>재해정도"),
                     '</table>'
                 ])
 
                 final_print_html = re.sub(r'>\s+<', '><', html_1 + "<br><br>" + html_2)
                 st.markdown(final_print_html, unsafe_allow_html=True)
 
-                # [핵심 수정] 인쇄용 전용 스타일링 (A4 폭 고정 및 여백 최적화)
+                # [수정 1] 인쇄 CSS에서 페이지 나누기(page-break-before) 제거 및 .photo-blank 높이 400px 반영
                 standalone_html = f"""
                 <!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>보고서 인쇄</title>
                 <style>
@@ -518,10 +518,10 @@ elif main_menu == "3. 사고보고서":
                     .gapji-table {{ width: 100%; max-width: 100%; border-collapse: collapse; font-size: 13px; border: 2px solid #000; margin-bottom: 20px; table-layout: fixed; word-break: break-word; }} 
                     .gapji-table th, .gapji-table td {{ border: 1px solid #000; padding: 6px; text-align: center; vertical-align: middle; }} 
                     .gapji-header {{ background-color: #f0f0f0 !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }} 
-                    .grid-photo {{ width: 100%; height: 280px; object-fit: contain; display: block; margin: 0 auto; }} 
-                    .page-break {{ page-break-before: always; }}
+                    .grid-photo {{ width: 100%; height: 400px; object-fit: contain; display: block; margin: 0 auto; }}
+                    .photo-blank {{ height: 400px; display: flex; justify-content: center; align-items: center; color: #999; font-size: 14px; background-color: #fafafa; }}
                 </style>
-                </head><body onload="window.print()">{html_1}<div class="page-break"></div>{html_2}</body></html>
+                </head><body onload="window.print()">{html_1}<br>{html_2}</body></html>
                 """
                 b64_html = base64.b64encode(standalone_html.encode('utf-8')).decode('utf-8')
                 st.markdown(f'<div style="text-align:center;"><a href="data:text/html;base64,{b64_html}" download="보고서.html" style="padding:15px; background-color:#4CAF50; color:white; text-decoration:none; border-radius:8px; font-weight:bold;">🖨️ 인쇄용 파일 다운로드</a></div>', unsafe_allow_html=True)
